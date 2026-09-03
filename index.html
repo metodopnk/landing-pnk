@@ -1250,7 +1250,7 @@ a { color: inherit; text-decoration: none; }
     <!-- PASO 1.5: Grilla de disponibilidad -->
     <div id="modal-paso15" style="display:none">
       <h3 style="font-family:var(--font-head);margin-bottom:4px">¿Cuándo tenés disponibilidad?</h3>
-      <p class="modal-sub" style="margin-bottom:12px">Elegí exactamente <strong>3 opciones</strong> que te queden bien.</p>
+      <p class="modal-sub" style="margin-bottom:12px">Elegí al menos <strong>2 opciones</strong> que te queden bien.</p>
       <p id="err-paso15" style="display:none;color:var(--obes);font-size:.82rem;margin-bottom:10px;background:#fff3f3;padding:8px 10px;border-radius:8px"></p>
 
       <!-- Franjas editables -->
@@ -1304,7 +1304,7 @@ a { color: inherit; text-decoration: none; }
       </div>
 
       <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <div id="grilla-contador" style="font-size:.8rem;color:var(--muted)">0 de 3 seleccionadas</div>
+        <div id="grilla-contador" style="font-size:.8rem;color:var(--muted)">0 de 2 seleccionadas</div>
         <button id="btn-grilla-continuar" onclick="confirmarDisponibilidadGrilla()" disabled
           style="padding:10px 20px;background:var(--gold);color:#fff;border:none;border-radius:8px;font-size:.88rem;font-weight:700;cursor:not-allowed;opacity:.5;font-family:var(--font-body)">
           Ver horarios →
@@ -1320,7 +1320,23 @@ a { color: inherit; text-decoration: none; }
       <div id="slots-loading" style="text-align:center;padding:20px;color:var(--muted)">⏳ Buscando disponibilidad...</div>
       <div id="slots-list" style="display:flex;flex-direction:column;gap:10px;margin:12px 0"></div>
       <p id="slots-err" style="color:var(--obes);font-size:.85rem;display:none"></p>
-      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--divider);text-align:center">
+      <!-- Confirmación explícita del slot -->
+      <div id="confirm-slot-wrap" style="display:none;margin-top:14px;background:#fdf5e4;border:2px solid var(--gold);border-radius:10px;padding:14px">
+        <div style="font-size:.82rem;font-weight:700;color:var(--ink);margin-bottom:10px" id="confirm-slot-resumen"></div>
+        <button onclick="confirmarSlotElegido()"
+          style="width:100%;padding:12px;background:var(--gold);color:#fff;border:none;border-radius:8px;font-size:.92rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">
+          ✅ Confirmar este turno
+        </button>
+        <button onclick="document.getElementById('confirm-slot-wrap').style.display='none';document.querySelectorAll('.slot-btn').forEach(b=>b.classList.remove('elegido'));_slotElegido=null;"
+          style="width:100%;padding:8px;background:none;border:none;color:var(--muted);font-size:.82rem;cursor:pointer;margin-top:6px;font-family:var(--font-body)">
+          Elegir otro horario
+        </button>
+      </div>
+      <!-- Spinner durante confirmación -->
+      <div id="confirm-spinner" style="display:none;text-align:center;padding:16px;color:var(--muted)">
+        ⏳ Confirmando tu turno...
+      </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--divider);text-align:center">
         <p style="font-size:.8rem;color:var(--muted);margin-bottom:8px">¿Ningún horario te queda bien?</p>
         <button onclick="coordinarPorWA()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#25D366;color:#fff;border:none;border-radius:8px;font-size:.88rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">
           💬 Coordinar horario por WhatsApp
@@ -2195,7 +2211,7 @@ function toggleCeldaGrilla(fi, di){
   if(idx >= 0){
     _grillaSeleccionadas.splice(idx,1);
   } else {
-    if(_grillaSeleccionadas.length >= 3){
+    if(_grillaSeleccionadas.length >= 5){  // máx 5 opciones
       // Desseleccionar la primera
       _grillaSeleccionadas.shift();
     }
@@ -2208,11 +2224,11 @@ function actualizarContadorGrilla(){
   const n = _grillaSeleccionadas.length;
   const el = document.getElementById('grilla-contador');
   const btn = document.getElementById('btn-grilla-continuar');
-  if(el) el.textContent = `${n} de 3 seleccionadas`;
+  if(el) el.textContent = `${n} seleccionadas (mín. 2)`;
   if(btn){
-    btn.disabled = n !== 3;
-    btn.style.opacity = n === 3 ? '1' : '.5';
-    btn.style.cursor  = n === 3 ? 'pointer' : 'not-allowed';
+    btn.disabled = n < 2;
+    btn.style.opacity = n >= 2 ? '1' : '.5';
+    btn.style.cursor  = n >= 2 ? 'pointer' : 'not-allowed';
   }
 }
 
@@ -2254,9 +2270,9 @@ function cerrarEditorFranja(){
 }
 
 function confirmarDisponibilidadGrilla(){
-  if(_grillaSeleccionadas.length !== 3){
+  if(_grillaSeleccionadas.length < 2){
     const errEl = document.getElementById('err-paso15');
-    if(errEl){ errEl.style.display='block'; errEl.textContent='Seleccioná exactamente 3 opciones antes de continuar.'; }
+    if(errEl){ errEl.style.display='block'; errEl.textContent='Seleccioná al menos 2 opciones antes de continuar.'; }
     return;
   }
   // Convertir selección a formato para el Apps Script
@@ -2895,6 +2911,12 @@ function abrirVentanaLead(tipo, kg){
   document.getElementById('modal-modalidad-wrap').style.display = esTipoAgenda ? 'block' : 'none';
   const btnSend = document.getElementById('btn-modal-send');
   if(btnSend) btnSend.textContent = esTipoAgenda ? 'Ver horarios disponibles →' : 'Continuar y calcular mi peso ideal →';
+  // Limpiar estado visual de tipo y modalidad al abrir
+  if(esTipoAgenda){
+    _tipoConsulta = null; _modalidad = null;
+    document.querySelectorAll('.btn-tipo').forEach(b=>b.setAttribute('aria-pressed','false'));
+    document.querySelectorAll('.btn-mod').forEach(b=>b.setAttribute('aria-pressed','false'));
+  }
   document.getElementById('modal-bg').classList.add('open');
   document.getElementById('m-nombre').focus();
 }
@@ -2955,11 +2977,29 @@ async function irAPaso2(){
 
   // Flujo de agenda real — exige tipo y modalidad
   const esAgenda = !(_modalOrigen==='calc'||_modalOrigen==='rapido');
-  if(!nombre||!apellido||!tel||!depto||(esAgenda&&(!_tipoConsulta||!_modalidad))){
+  // Marcar campos faltantes en rojo
+  const campos = [
+    {id:'m-nombre',   val:nombre},
+    {id:'m-apellido', val:apellido},
+    {id:'m-tel',      val:tel},
+    {id:'m-depto',    val:depto},
+  ];
+  let hayError = false;
+  campos.forEach(({id, val})=>{
+    const el = document.getElementById(id);
+    if(el){ el.style.borderColor = val ? '' : 'var(--obes)'; if(!val) hayError=true; }
+  });
+  if(esAgenda && !_tipoConsulta){
+    document.querySelector('.btn-tipo')?.closest('div')?.style && (document.querySelectorAll('.btn-tipo')[0].closest('div').style.outline='2px solid var(--obes)');
+    hayError=true;
+  } else { document.querySelectorAll('.btn-tipo')[0]?.closest('div') && (document.querySelectorAll('.btn-tipo')[0].closest('div').style.outline=''); }
+  if(esAgenda && !_modalidad){
+    document.querySelectorAll('.btn-mod')[0]?.closest('div') && (document.querySelectorAll('.btn-mod')[0].closest('div').style.outline='2px solid var(--obes)');
+    hayError=true;
+  } else { document.querySelectorAll('.btn-mod')[0]?.closest('div') && (document.querySelectorAll('.btn-mod')[0].closest('div').style.outline=''); }
+  if(hayError){
     errEl.style.display='block';
-    errEl.textContent = esAgenda
-      ? 'Completá todos los campos y elegí tipo y modalidad.'
-      : 'Completá los campos obligatorios (*).';
+    errEl.textContent = esAgenda ? 'Completá los campos marcados y elegí tipo y modalidad.' : 'Completá los campos obligatorios.';
     return;
   }
   errEl.style.display='none';
@@ -3049,7 +3089,25 @@ function renderSlotsError(msg){
 function elegirSlot(btn,slot){
   document.querySelectorAll('.slot-btn').forEach(b=>b.classList.remove('elegido'));
   btn.classList.add('elegido'); _slotElegido=slot;
-  confirmarAgenda();
+  // Mostrar botón de confirmación explícita
+  const confWrap = document.getElementById('confirm-slot-wrap');
+  if(confWrap){
+    const tipoLabel = {'evaluacion':'Evaluación inicial','seguimiento':'Seguimiento','reinicio':'Reinicio'}[_tipoConsulta]||'Consulta';
+    const ubicLabel = _modalidad==='online'?'Online':(_modalidad==='punta_carretas'?'Punta Carretas':'Parque Batlle');
+    document.getElementById('confirm-slot-resumen').textContent =
+      `📅 ${slot.label} · ${tipoLabel} · ${ubicLabel}`;
+    confWrap.style.display = 'block';
+  }
+}
+
+async function confirmarSlotElegido(){
+  const confWrap = document.getElementById('confirm-slot-wrap');
+  if(confWrap) confWrap.style.display = 'none';
+  // Mostrar spinner
+  const spinner = document.getElementById('confirm-spinner');
+  if(spinner) spinner.style.display = 'block';
+  await confirmarAgenda();
+  if(spinner) spinner.style.display = 'none';
 }
 
 async function confirmarAgenda(){
