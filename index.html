@@ -1286,22 +1286,16 @@ a { color: inherit; text-decoration: none; }
         </div>
       </div>
 
-      <!-- Grilla -->
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse">
-          <thead>
-            <tr>
-              <th style="padding:6px 6px;color:var(--muted);font-size:.7rem;font-weight:600;text-align:left;width:80px">Franja</th>
-              <th style="padding:6px 4px;color:var(--muted);font-size:.7rem;font-weight:600;text-align:center">Lun</th>
-              <th style="padding:6px 4px;color:var(--muted);font-size:.7rem;font-weight:600;text-align:center">Mar</th>
-              <th style="padding:6px 4px;color:var(--muted);font-size:.7rem;font-weight:600;text-align:center">Mié</th>
-              <th style="padding:6px 4px;color:var(--muted);font-size:.7rem;font-weight:600;text-align:center">Jue</th>
-              <th style="padding:6px 4px;color:var(--muted);font-size:.7rem;font-weight:600;text-align:center">Vie</th>
-            </tr>
-          </thead>
-          <tbody id="grilla-body"></tbody>
-        </table>
+      <!-- Días -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:4px;text-align:center">
+        <div style="font-size:.7rem;color:var(--muted);font-weight:600;padding:2px">Lun</div>
+        <div style="font-size:.7rem;color:var(--muted);font-weight:600;padding:2px">Mar</div>
+        <div style="font-size:.7rem;color:var(--muted);font-weight:600;padding:2px">Mié</div>
+        <div style="font-size:.7rem;color:var(--muted);font-weight:600;padding:2px">Jue</div>
+        <div style="font-size:.7rem;color:var(--muted);font-weight:600;padding:2px">Vie</div>
       </div>
+      <!-- Grilla por franja -->
+      <div id="grilla-body"></div>
 
       <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px">
         <div id="grilla-contador" style="font-size:.8rem;color:var(--muted)">0 de 2 seleccionadas</div>
@@ -2173,51 +2167,101 @@ function iniciarGrilla(){
   renderGrilla();
 }
 
+function getFechasDisponibles(){
+  // Generar fechas reales de la semana actual y siguiente (solo Lun-Vie)
+  const hoy = new Date();
+  const fechas = [];
+  const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const diasNombre = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+  // Empezar desde mañana
+  let cursor = new Date(hoy);
+  cursor.setDate(cursor.getDate() + 1);
+  cursor.setHours(0,0,0,0);
+
+  while(fechas.length < 10){
+    const dia = cursor.getDay();
+    if(dia >= 1 && dia <= 5){ // Lun-Vie
+      fechas.push({
+        fecha: new Date(cursor),
+        diaIdx: dia - 1, // 0=Lun
+        label: diasNombre[dia] + ' ' + cursor.getDate() + ' ' + meses[cursor.getMonth()]
+      });
+    }
+    cursor.setDate(cursor.getDate() + 1);
+    if(fechas.length >= 10) break;
+  }
+  return fechas;
+}
+
 function renderGrilla(){
   const tbody = document.getElementById('grilla-body');
   if(!tbody) return;
+
   // Actualizar labels de franjas
   _franjas.forEach((f,i)=>{
     const el = document.getElementById(`franja-label-${i}`);
     if(el) el.textContent = `${f.desde}:00 – ${f.hasta}:00`;
   });
-  // Renderizar filas
+
+  const fechas = getFechasDisponibles();
+
+  // Renderizar: una sección por franja con fechas reales
   tbody.innerHTML = _franjas.map((f,fi)=>`
-    <tr>
-      <td style="padding:6px;font-size:.75rem;font-weight:600;color:var(--ink);white-space:nowrap">${f.nombre}<br><span style="font-size:.65rem;color:var(--muted);font-weight:400">${f.desde}:00–${f.hasta}:00</span></td>
-      ${DIAS.map((d,di)=>{
-        const sel = _grillaSeleccionadas.some(s=>s.franja===fi&&s.dia===di);
-        const bloqueada = esCeldaBloqueada(fi, di);
-        return `<td style="padding:4px;text-align:center">
-          <button onclick="toggleCeldaGrilla(${fi},${di})" ${bloqueada?'disabled':''} title="${bloqueada?'No disponible para esta sede':d}"
-            style="width:36px;height:36px;border-radius:8px;border:2px solid ${sel?'var(--gold)':'var(--divider)'};background:${bloqueada?'#f0f0f0':sel?'var(--gold)':'#fff'};color:${bloqueada?'#ccc':sel?'#fff':'var(--ink)'};font-size:.8rem;cursor:${bloqueada?'not-allowed':'pointer'};font-weight:${sel?'700':'400'};transition:all .15s">
-            ${bloqueada?'–':sel?'✓':d.charAt(0)}
-          </button>
-        </td>`;
-      }).join('')}
-    </tr>`).join('');
+    <div style="margin-bottom:12px">
+      <div style="font-size:.7rem;color:var(--muted);font-weight:600;margin-bottom:6px">${f.nombre} · ${f.desde}:00–${f.hasta}:00</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${fechas.map((fecha, idx)=>{
+          const sel = _grillaSeleccionadas.some(s=>s.franja===fi&&s.fechaIdx===idx);
+          const bloqueada = esCeldaBloqueadaFecha(fi, fecha);
+          const esEstaS = idx < 5 ? '' : 'opacity:.8';
+          return `<button onclick="toggleCeldaFecha(${fi},${idx})" ${bloqueada?'disabled':''}
+            style="padding:6px 10px;border-radius:8px;border:2px solid ${sel?'var(--gold)':'var(--divider)'};background:${bloqueada?'#f5f5f5':sel?'var(--gold)':'#fff'};color:${bloqueada?'#ccc':sel?'#fff':'var(--ink)'};font-size:.75rem;font-weight:${sel?'700':'500'};cursor:${bloqueada?'not-allowed':'pointer'};${esEstaS}">
+            ${bloqueada?'–':fecha.label}${sel?' ✓':''}
+          </button>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
+
   actualizarContadorGrilla();
 }
 
-function esCeldaBloqueada(franjaIdx, diaIdx){
+function esCeldaBloqueadaFecha(franjaIdx, fecha){
   const f = _franjas[franjaIdx];
-  // Punta Carretas cierra a las 18 — bloquear si la franja empieza en 18 o más
   if(_modalidad === 'punta_carretas' && f.desde >= 18) return true;
   return false;
 }
 
-function toggleCeldaGrilla(fi, di){
-  const idx = _grillaSeleccionadas.findIndex(s=>s.franja===fi&&s.dia===di);
+function esCeldaBloqueada(fi, di){
+  const f = _franjas[fi];
+  if(_modalidad === 'punta_carretas' && f.desde >= 18) return true;
+  return false;
+}
+
+function toggleCeldaFecha(fi, fechaIdx){
+  const fechas = getFechasDisponibles();
+  const fecha  = fechas[fechaIdx];
+  const idx    = _grillaSeleccionadas.findIndex(s=>s.franja===fi&&s.fechaIdx===fechaIdx);
   if(idx >= 0){
     _grillaSeleccionadas.splice(idx,1);
   } else {
-    if(_grillaSeleccionadas.length >= 5){  // máx 5 opciones
-      // Desseleccionar la primera
-      _grillaSeleccionadas.shift();
-    }
-    _grillaSeleccionadas.push({franja:fi, dia:di});
+    if(_grillaSeleccionadas.length >= 5) _grillaSeleccionadas.shift();
+    _grillaSeleccionadas.push({
+      franja: fi, fechaIdx,
+      dia:    fecha.diaIdx,
+      nombre: fecha.label,
+      desde:  _franjas[fi].desde,
+      hasta:  _franjas[fi].hasta,
+      fechaISO: fecha.fecha.toISOString().split('T')[0]
+    });
   }
   renderGrilla();
+}
+
+function toggleCeldaGrilla(fi, di){
+  const fechas = getFechasDisponibles();
+  const fechaIdx = fechas.findIndex(f => f.diaIdx === di);
+  if(fechaIdx >= 0) toggleCeldaFecha(fi, fechaIdx);
 }
 
 function actualizarContadorGrilla(){
@@ -2278,11 +2322,12 @@ function confirmarDisponibilidadGrilla(){
   // Convertir selección a formato para el Apps Script
   _disponibilidad = 'grilla';
   _disponibilidadGrilla = _grillaSeleccionadas.map(s=>({
-    franja: s.franja,
-    dia: s.dia,
-    nombre: DIAS[s.dia],
-    desde: _franjas[s.franja].desde,
-    hasta: _franjas[s.franja].hasta,
+    franja:   s.franja,
+    dia:      s.dia,
+    nombre:   s.nombre || DIAS[s.dia],
+    desde:    s.desde  || _franjas[s.franja].desde,
+    hasta:    s.hasta  || _franjas[s.franja].hasta,
+    fechaISO: s.fechaISO || '',
   }));
   _showPaso(2);
   cargarSlots();
