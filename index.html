@@ -1247,34 +1247,70 @@ a { color: inherit; text-decoration: none; }
       <button class="btn-modal-send" id="btn-modal-send" onclick="irAPaso2()">Ver horarios disponibles →</button>
     </div>
 
-    <!-- PASO 1.5: Disponibilidad horaria -->
+    <!-- PASO 1.5: Grilla de disponibilidad -->
     <div id="modal-paso15" style="display:none">
-      <h3 style="font-family:var(--font-head);margin-bottom:6px">¿Cuándo tenés disponibilidad?</h3>
-      <p class="modal-sub" style="margin-bottom:16px">Así te mostramos los turnos que mejor se adaptan a vos.</p>
-      <p id="err-paso15" style="display:none;color:var(--obes);font-size:.85rem;margin-bottom:12px;background:#fff3f3;padding:10px;border-radius:8px"></p>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <button class="slot-btn" onclick="setDisponibilidad('flexible')">
-          <span style="font-size:1.2rem">🕐</span>
-          <div><div style="font-weight:700">Me manejo mis tiempos</div><div style="font-size:.78rem;opacity:.8">Tengo disponibilidad flexible</div></div>
-        </button>
-        <button class="slot-btn" onclick="setDisponibilidad('manana')">
-          <span style="font-size:1.2rem">🌅</span>
-          <div><div style="font-weight:700">Mañana</div><div style="font-size:.78rem;opacity:.8">Disponible de 9:00 a 12:00</div></div>
-        </button>
-        <button class="slot-btn" onclick="setDisponibilidad('tarde')">
-          <span style="font-size:1.2rem">🌤</span>
-          <div><div style="font-weight:700">Tarde</div><div style="font-size:.78rem;opacity:.8">Disponible de 12:00 a 18:00</div></div>
-        </button>
-        <button class="slot-btn" onclick="setDisponibilidad('post_trabajo')">
-          <span style="font-size:1.2rem">💼</span>
-          <div><div style="font-weight:700">Luego del trabajo</div><div style="font-size:.78rem;opacity:.8">Disponible después de las 18:00</div></div>
-        </button>
-        <button class="slot-btn" onclick="setDisponibilidad('noche')" id="btn-franja-noche">
-          <span style="font-size:1.2rem">🌙</span>
-          <div><div style="font-weight:700">Noche</div><div style="font-size:.78rem;opacity:.8">Disponible de 18:00 a 21:00 · Online hasta 21hs · Parque Batlle hasta 20hs</div></div>
+      <h3 style="font-family:var(--font-head);margin-bottom:4px">¿Cuándo tenés disponibilidad?</h3>
+      <p class="modal-sub" style="margin-bottom:12px">Elegí exactamente <strong>3 opciones</strong> que te queden bien.</p>
+      <p id="err-paso15" style="display:none;color:var(--obes);font-size:.82rem;margin-bottom:10px;background:#fff3f3;padding:8px 10px;border-radius:8px"></p>
+
+      <!-- Franjas editables -->
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <div style="flex:1;background:#fdf5e4;border:1.5px solid var(--gold);border-radius:8px;padding:6px 8px;cursor:pointer" onclick="editarFranja(0)">
+          <div style="font-size:.62rem;color:var(--muted);font-weight:600">🌅 MAÑANA ✏️</div>
+          <div id="franja-label-0" style="font-size:.8rem;font-weight:700;color:var(--ink)">9:00 – 12:00</div>
+        </div>
+        <div style="flex:1;background:#fdf5e4;border:1.5px solid var(--gold);border-radius:8px;padding:6px 8px;cursor:pointer" onclick="editarFranja(1)">
+          <div style="font-size:.62rem;color:var(--muted);font-weight:600">🌤 TARDE ✏️</div>
+          <div id="franja-label-1" style="font-size:.8rem;font-weight:700;color:var(--ink)">12:00 – 18:00</div>
+        </div>
+        <div style="flex:1;background:#fdf5e4;border:1.5px solid var(--gold);border-radius:8px;padding:6px 8px;cursor:pointer" onclick="editarFranja(2)">
+          <div style="font-size:.62rem;color:var(--muted);font-weight:600">🌙 NOCHE ✏️</div>
+          <div id="franja-label-2" style="font-size:.8rem;font-weight:700;color:var(--ink)">18:00 – 21:00</div>
+        </div>
+      </div>
+
+      <!-- Editor de franja -->
+      <div id="franja-editor" style="display:none;background:#f8f8f8;border:1px solid var(--divider);border-radius:8px;padding:10px;margin-bottom:10px">
+        <div style="font-size:.75rem;color:var(--muted);margin-bottom:8px">Editando: <strong id="franja-editor-nombre"></strong></div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div>
+            <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:2px">Desde</label>
+            <select id="franja-desde" onchange="actualizarFranja()" style="padding:5px 8px;border:1.5px solid var(--divider);border-radius:6px;font-size:.82rem"></select>
+          </div>
+          <div style="color:var(--muted);margin-top:16px">→</div>
+          <div>
+            <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:2px">Hasta</label>
+            <select id="franja-hasta" onchange="actualizarFranja()" style="padding:5px 8px;border:1.5px solid var(--divider);border-radius:6px;font-size:.82rem"></select>
+          </div>
+          <button onclick="cerrarEditorFranja()" style="margin-top:16px;background:var(--gold);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">✓ Listo</button>
+        </div>
+      </div>
+
+      <!-- Grilla -->
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th style="padding:6px 6px;color:var(--muted);font-size:.7rem;font-weight:600;text-align:left;width:80px">Franja</th>
+              <th style="padding:6px 4px;color:var(--muted);font-size:.7rem;font-weight:600;text-align:center">Lun</th>
+              <th style="padding:6px 4px;color:var(--muted);font-size:.7rem;font-weight:600;text-align:center">Mar</th>
+              <th style="padding:6px 4px;color:var(--muted);font-size:.7rem;font-weight:600;text-align:center">Mié</th>
+              <th style="padding:6px 4px;color:var(--muted);font-size:.7rem;font-weight:600;text-align:center">Jue</th>
+              <th style="padding:6px 4px;color:var(--muted);font-size:.7rem;font-weight:600;text-align:center">Vie</th>
+            </tr>
+          </thead>
+          <tbody id="grilla-body"></tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div id="grilla-contador" style="font-size:.8rem;color:var(--muted)">0 de 3 seleccionadas</div>
+        <button id="btn-grilla-continuar" onclick="confirmarDisponibilidadGrilla()" disabled
+          style="padding:10px 20px;background:var(--gold);color:#fff;border:none;border-radius:8px;font-size:.88rem;font-weight:700;cursor:not-allowed;opacity:.5;font-family:var(--font-body)">
+          Ver horarios →
         </button>
       </div>
-      <button onclick="irAPaso1()" style="background:none;border:none;color:var(--muted);font-size:.85rem;cursor:pointer;margin-top:12px;font-family:var(--font-body)">← Volver</button>
+      <button onclick="irAPaso1()" style="background:none;border:none;color:var(--muted);font-size:.85rem;cursor:pointer;margin-top:10px;font-family:var(--font-body)">← Volver</button>
     </div>
 
     <!-- PASO 2: Slots de calendario -->
@@ -2106,6 +2142,136 @@ function actualizarCostoRango(){
 
 
 /* ---- Avisa de descuentos ---- */
+/* ---- Grilla de disponibilidad ---- */
+const DIAS = ['Lun','Mar','Mié','Jue','Vie'];
+const FRANJAS_NOMBRES = ['🌅 Mañana','🌤 Tarde','🌙 Noche'];
+let _franjas = [
+  { nombre:'Mañana', desde:9,  hasta:12 },
+  { nombre:'Tarde',  desde:12, hasta:18 },
+  { nombre:'Noche',  desde:18, hasta:21 },
+];
+let _grillaSeleccionadas = []; // [{franja:0,dia:0}, ...]
+let _franjaEditando = null;
+
+function iniciarGrilla(){
+  renderGrilla();
+}
+
+function renderGrilla(){
+  const tbody = document.getElementById('grilla-body');
+  if(!tbody) return;
+  // Actualizar labels de franjas
+  _franjas.forEach((f,i)=>{
+    const el = document.getElementById(`franja-label-${i}`);
+    if(el) el.textContent = `${f.desde}:00 – ${f.hasta}:00`;
+  });
+  // Renderizar filas
+  tbody.innerHTML = _franjas.map((f,fi)=>`
+    <tr>
+      <td style="padding:6px;font-size:.75rem;font-weight:600;color:var(--ink);white-space:nowrap">${f.nombre}<br><span style="font-size:.65rem;color:var(--muted);font-weight:400">${f.desde}:00–${f.hasta}:00</span></td>
+      ${DIAS.map((d,di)=>{
+        const sel = _grillaSeleccionadas.some(s=>s.franja===fi&&s.dia===di);
+        const bloqueada = esCeldaBloqueada(fi, di);
+        return `<td style="padding:4px;text-align:center">
+          <button onclick="toggleCeldaGrilla(${fi},${di})" ${bloqueada?'disabled':''} title="${bloqueada?'No disponible para esta sede':d}"
+            style="width:36px;height:36px;border-radius:8px;border:2px solid ${sel?'var(--gold)':'var(--divider)'};background:${bloqueada?'#f0f0f0':sel?'var(--gold)':'#fff'};color:${bloqueada?'#ccc':sel?'#fff':'var(--ink)'};font-size:.8rem;cursor:${bloqueada?'not-allowed':'pointer'};font-weight:${sel?'700':'400'};transition:all .15s">
+            ${bloqueada?'–':sel?'✓':d.charAt(0)}
+          </button>
+        </td>`;
+      }).join('')}
+    </tr>`).join('');
+  actualizarContadorGrilla();
+}
+
+function esCeldaBloqueada(franjaIdx, diaIdx){
+  const f = _franjas[franjaIdx];
+  // Punta Carretas cierra a las 18 — bloquear si la franja empieza en 18 o más
+  if(_modalidad === 'punta_carretas' && f.desde >= 18) return true;
+  return false;
+}
+
+function toggleCeldaGrilla(fi, di){
+  const idx = _grillaSeleccionadas.findIndex(s=>s.franja===fi&&s.dia===di);
+  if(idx >= 0){
+    _grillaSeleccionadas.splice(idx,1);
+  } else {
+    if(_grillaSeleccionadas.length >= 3){
+      // Desseleccionar la primera
+      _grillaSeleccionadas.shift();
+    }
+    _grillaSeleccionadas.push({franja:fi, dia:di});
+  }
+  renderGrilla();
+}
+
+function actualizarContadorGrilla(){
+  const n = _grillaSeleccionadas.length;
+  const el = document.getElementById('grilla-contador');
+  const btn = document.getElementById('btn-grilla-continuar');
+  if(el) el.textContent = `${n} de 3 seleccionadas`;
+  if(btn){
+    btn.disabled = n !== 3;
+    btn.style.opacity = n === 3 ? '1' : '.5';
+    btn.style.cursor  = n === 3 ? 'pointer' : 'not-allowed';
+  }
+}
+
+function editarFranja(idx){
+  _franjaEditando = idx;
+  const f = _franjas[idx];
+  const editor = document.getElementById('franja-editor');
+  const nombre = document.getElementById('franja-editor-nombre');
+  if(nombre) nombre.textContent = FRANJAS_NOMBRES[idx];
+
+  // Poblar selectores de hora
+  const horas = [];
+  for(let h=6; h<=23; h++) horas.push(h);
+
+  const selDesde = document.getElementById('franja-desde');
+  const selHasta = document.getElementById('franja-hasta');
+  if(selDesde){
+    selDesde.innerHTML = horas.map(h=>`<option value="${h}" ${h===f.desde?'selected':''}>${h}:00</option>`).join('');
+  }
+  if(selHasta){
+    selHasta.innerHTML = horas.map(h=>`<option value="${h}" ${h===f.hasta?'selected':''}>${h}:00</option>`).join('');
+  }
+  if(editor) editor.style.display = 'block';
+}
+
+function actualizarFranja(){
+  if(_franjaEditando === null) return;
+  const desde = parseInt(document.getElementById('franja-desde').value);
+  const hasta  = parseInt(document.getElementById('franja-hasta').value);
+  if(hasta <= desde) return;
+  _franjas[_franjaEditando].desde = desde;
+  _franjas[_franjaEditando].hasta = hasta;
+  renderGrilla();
+}
+
+function cerrarEditorFranja(){
+  document.getElementById('franja-editor').style.display = 'none';
+  _franjaEditando = null;
+}
+
+function confirmarDisponibilidadGrilla(){
+  if(_grillaSeleccionadas.length !== 3){
+    const errEl = document.getElementById('err-paso15');
+    if(errEl){ errEl.style.display='block'; errEl.textContent='Seleccioná exactamente 3 opciones antes de continuar.'; }
+    return;
+  }
+  // Convertir selección a formato para el Apps Script
+  _disponibilidad = 'grilla';
+  _disponibilidadGrilla = _grillaSeleccionadas.map(s=>({
+    franja: s.franja,
+    dia: s.dia,
+    nombre: DIAS[s.dia],
+    desde: _franjas[s.franja].desde,
+    hasta: _franjas[s.franja].hasta,
+  }));
+  _showPaso(2);
+  cargarSlots();
+}
+
 /* ---- Seguro médico con descuento 20% ---- */
 let _seguroActivo = '';
 
@@ -2648,7 +2814,8 @@ let _kgRapidoPendiente = null;
 let _tipoConsulta = '';
 let _modalidad    = '';
 let _slotElegido    = null;
-let _disponibilidad = 'flexible'; // franja horaria elegida por el paciente
+let _disponibilidad = 'flexible';
+let _disponibilidadGrilla = [];
 
 function setDisponibilidad(franja){
   _disponibilidad = franja;
@@ -2735,6 +2902,7 @@ function abrirVentanaLead(tipo, kg){
 function _showPaso(n){
   document.getElementById('modal-paso1').style.display  = n===1  ?'block':'none';
   document.getElementById('modal-paso15').style.display = n===1.5?'block':'none';
+  if(n===1.5){ _grillaSeleccionadas=[]; iniciarGrilla(); }
   document.getElementById('modal-paso2').style.display  = n===2  ?'block':'none';
   document.getElementById('modal-ok').style.display     = n===3  ?'block':'none';
 }
@@ -2813,6 +2981,7 @@ function cargarSlots(){
   const mod  = _modalidad||'default';
   const tipo = _tipoConsulta||'evaluacion';
   const disp = _disponibilidad||'flexible';
+  const grilla = _disponibilidad==='grilla' ? encodeURIComponent(JSON.stringify(_disponibilidadGrilla)) : '';
 
   const cbName = 'pnkSlots_' + Date.now();
   const script  = document.createElement('script');
@@ -2842,7 +3011,7 @@ function cargarSlots(){
       </button>`).join('');
   };
 
-  script.src = `${APPS_SCRIPT_URL}?action=getSlots&medico=cualquiera&modalidad=${encodeURIComponent(mod)}&tipo=${encodeURIComponent(tipo)}&disponibilidad=${encodeURIComponent(disp)}&callback=${cbName}`;
+  script.src = `${APPS_SCRIPT_URL}?action=getSlots&medico=cualquiera&modalidad=${encodeURIComponent(mod)}&tipo=${encodeURIComponent(tipo)}&disponibilidad=${encodeURIComponent(disp)}&grilla=${grilla}&callback=${cbName}`;
   script.onerror = ()=>{
     clearTimeout(timeout);
     loading.style.display='none';
