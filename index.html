@@ -1247,67 +1247,79 @@ a { color: inherit; text-decoration: none; }
       <button class="btn-modal-send" id="btn-modal-send" onclick="irAPaso2()">Ver horarios disponibles →</button>
     </div>
 
-    <!-- PASO 1.5: Grilla de disponibilidad -->
+    <!-- PASO 1.5: Disponibilidad nueva UI -->
     <div id="modal-paso15" style="display:none">
-      <h3 style="font-family:var(--font-head);margin-bottom:4px">¿Cuándo tenés disponibilidad?</h3>
-      <p class="modal-sub" style="margin-bottom:12px">Elegí al menos <strong>2 opciones</strong> que te queden bien.</p>
+      <h3 style="font-family:var(--font-head);margin-bottom:4px">¿Cuándo te viene bien?</h3>
+      <p class="modal-sub" style="margin-bottom:16px">Elegí al menos 2 opciones para tu consulta médica.</p>
       <p id="err-paso15" style="display:none;color:var(--obes);font-size:.82rem;margin-bottom:10px;background:#fff3f3;padding:8px 10px;border-radius:8px"></p>
 
-      <!-- Franjas editables -->
-      <div style="display:flex;gap:6px;margin-bottom:10px">
-        <div style="flex:1;background:#fdf5e4;border:1.5px solid var(--gold);border-radius:8px;padding:6px 8px;cursor:pointer" onclick="editarFranja(0)">
-          <div style="font-size:.62rem;color:var(--muted);font-weight:600">🌅 MAÑANA ✏️</div>
-          <div id="franja-label-0" style="font-size:.8rem;font-weight:700;color:var(--ink)">9:00 – 12:00</div>
-        </div>
-        <div style="flex:1;background:#fdf5e4;border:1.5px solid var(--gold);border-radius:8px;padding:6px 8px;cursor:pointer" onclick="editarFranja(1)">
-          <div style="font-size:.62rem;color:var(--muted);font-weight:600">🌤 TARDE ✏️</div>
-          <div id="franja-label-1" style="font-size:.8rem;font-weight:700;color:var(--ink)">12:00 – 18:00</div>
-        </div>
-        <div style="flex:1;background:#fdf5e4;border:1.5px solid var(--gold);border-radius:8px;padding:6px 8px;cursor:pointer" onclick="editarFranja(2)">
-          <div style="font-size:.62rem;color:var(--muted);font-weight:600">🌙 NOCHE ✏️</div>
-          <div id="franja-label-2" style="font-size:.8rem;font-weight:700;color:var(--ink)">18:00 – 21:00</div>
+      <!-- Paso 1: Horario -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="background:var(--gold);color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;flex-shrink:0">1</div>
+        <div>
+          <div style="font-weight:700;font-size:.9rem">¿En qué horario?</div>
+          <div style="font-size:.75rem;color:var(--muted)">Podés seleccionar más de una opción.</div>
         </div>
       </div>
-
-      <!-- Editor de franja -->
-      <div id="franja-editor" style="display:none;background:#f8f8f8;border:1px solid var(--divider);border-radius:8px;padding:10px;margin-bottom:10px">
-        <div style="font-size:.75rem;color:var(--muted);margin-bottom:8px">Editando: <strong id="franja-editor-nombre"></strong></div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <div>
-            <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:2px">Desde</label>
-            <select id="franja-desde" onchange="actualizarFranja()" style="padding:5px 8px;border:1.5px solid var(--divider);border-radius:6px;font-size:.82rem"></select>
-          </div>
-          <div style="color:var(--muted);margin-top:16px">→</div>
-          <div>
-            <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:2px">Hasta</label>
-            <select id="franja-hasta" onchange="actualizarFranja()" style="padding:5px 8px;border:1.5px solid var(--divider);border-radius:6px;font-size:.82rem"></select>
-          </div>
-          <button onclick="cerrarEditorFranja()" style="margin-top:16px;background:var(--gold);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">✓ Listo</button>
-        </div>
-      </div>
-
-      <!-- Días -->
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:4px;text-align:center">
-        <div style="font-size:.7rem;color:var(--muted);font-weight:600;padding:2px">Lun</div>
-        <div style="font-size:.7rem;color:var(--muted);font-weight:600;padding:2px">Mar</div>
-        <div style="font-size:.7rem;color:var(--muted);font-weight:600;padding:2px">Mié</div>
-        <div style="font-size:.7rem;color:var(--muted);font-weight:600;padding:2px">Jue</div>
-        <div style="font-size:.7rem;color:var(--muted);font-weight:600;padding:2px">Vie</div>
-      </div>
-      <!-- Grilla por franja -->
-      <div id="grilla-body"></div>
-
-      <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <div id="grilla-contador" style="font-size:.8rem;color:var(--muted)">0 de 2 seleccionadas</div>
-        <button id="btn-grilla-continuar" onclick="confirmarDisponibilidadGrilla()" disabled
-          style="padding:10px 20px;background:var(--gold);color:#fff;border:none;border-radius:8px;font-size:.88rem;font-weight:700;cursor:not-allowed;opacity:.5;font-family:var(--font-body)">
-          Ver horarios →
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px">
+        <button id="btn-h-0" onclick="toggleHorario(0)"
+          style="padding:12px 8px;border:2px solid var(--divider);border-radius:10px;background:#fff;text-align:left;cursor:pointer;font-family:var(--font-body);position:relative">
+          <div style="font-size:1.2rem">☀️</div>
+          <div style="font-weight:700;font-size:.85rem;margin-top:2px">Mañana</div>
+          <div id="lbl-h-0" style="font-size:.72rem;color:var(--muted)">9:00 – 12:00</div>
+          <div id="chk-h-0" style="position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;border:2px solid var(--divider);background:#fff"></div>
         </button>
+        <button id="btn-h-1" onclick="toggleHorario(1)"
+          style="padding:12px 8px;border:2px solid var(--divider);border-radius:10px;background:#fff;text-align:left;cursor:pointer;font-family:var(--font-body);position:relative">
+          <div style="font-size:1.2rem">⛅</div>
+          <div style="font-weight:700;font-size:.85rem;margin-top:2px">Tarde</div>
+          <div id="lbl-h-1" style="font-size:.72rem;color:var(--muted)">12:00 – 18:00</div>
+          <div id="chk-h-1" style="position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;border:2px solid var(--divider);background:#fff"></div>
+        </button>
+        <button id="btn-h-2" onclick="toggleHorario(2)"
+          style="padding:12px 8px;border:2px solid var(--divider);border-radius:10px;background:#fff;text-align:left;cursor:pointer;font-family:var(--font-body);position:relative">
+          <div style="font-size:1.2rem">🌙</div>
+          <div style="font-weight:700;font-size:.85rem;margin-top:2px">Noche</div>
+          <div id="lbl-h-2" style="font-size:.72rem;color:var(--muted)">18:00 – 21:00</div>
+          <div id="chk-h-2" style="position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;border:2px solid var(--divider);background:#fff"></div>
+        </button>
+      </div>
+
+      <!-- Paso 2: Días -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="background:var(--gold);color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;flex-shrink:0">2</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:.9rem">¿Qué días podés?</div>
+          <div style="font-size:.75rem;color:var(--muted)">Seleccioná las fechas que te quedan bien.</div>
+        </div>
+      </div>
+      <div id="dias-scroll" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;-webkit-overflow-scrolling:touch">
+        <!-- Se genera por JS -->
+      </div>
+
+      <!-- Botón rápido -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div style="flex:1;height:1px;background:var(--divider)"></div>
+        <span style="font-size:.75rem;color:var(--muted)">o</span>
+        <div style="flex:1;height:1px;background:var(--divider)"></div>
+      </div>
+      <button id="btn-rapido-disponib" onclick="usarDisponibilidadRapida()"
+        style="width:100%;padding:12px 16px;background:var(--gold-ll);border:1.5px solid var(--divider);border-radius:10px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:var(--font-body);text-align:left">
+        <span style="font-size:1.2rem">🕐</span>
+        <div id="btn-rapido-label" style="font-size:.88rem;font-weight:600;color:var(--ink)">Lo más próximo disponible →</div>
+      </button>
+
+      <div style="margin-top:16px">
+        <button id="btn-ver-disponib" onclick="confirmarNuevaDisponibilidad()" disabled
+          style="width:100%;padding:14px;background:var(--gold);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:not-allowed;opacity:.5;font-family:var(--font-body)">
+          Ver disponibilidad →
+        </button>
+        <p id="disponib-hint" style="text-align:center;font-size:.75rem;color:var(--muted);margin-top:8px">Seleccioná al menos 2 opciones para continuar.</p>
       </div>
       <button onclick="irAPaso1()" style="background:none;border:none;color:var(--muted);font-size:.85rem;cursor:pointer;margin-top:10px;font-family:var(--font-body)">← Volver</button>
     </div>
 
-    <!-- PASO 2: Slots de calendario -->
+        <!-- PASO 2: Slots de calendario -->
     <div id="modal-paso2" style="display:none">
       <h3 style="font-family:var(--font-head);margin-bottom:6px">Elegí un horario</h3>
       <p class="modal-sub">Próximos turnos disponibles (24–48 hs hábiles):</p>
@@ -2152,7 +2164,138 @@ function actualizarCostoRango(){
 
 
 /* ---- Avisa de descuentos ---- */
-/* ---- Grilla de disponibilidad ---- */
+/* ---- Nueva UI de disponibilidad ---- */
+let _horariosSeleccionados = []; // índices 0=Mañana, 1=Tarde, 2=Noche
+let _diasSeleccionados = [];     // índices de fechas
+
+const HORARIOS_CONFIG = [
+  { nombre:'Mañana', emoji:'☀️', desde:9,  hasta:12 },
+  { nombre:'Tarde',  emoji:'⛅', desde:12, hasta:18 },
+  { nombre:'Noche',  emoji:'🌙', desde:18, hasta:21 },
+];
+
+function iniciarNuevaDisponibilidad(){
+  _horariosSeleccionados = [];
+  _diasSeleccionados = [];
+  renderHorarios();
+  renderDias();
+  actualizarBtnRapido();
+  actualizarBtnContinuar();
+}
+
+function toggleHorario(idx){
+  const pos = _horariosSeleccionados.indexOf(idx);
+  if(pos >= 0) _horariosSeleccionados.splice(pos, 1);
+  else _horariosSeleccionados.push(idx);
+  renderHorarios();
+  actualizarBtnRapido();
+  actualizarBtnContinuar();
+}
+
+function renderHorarios(){
+  [0,1,2].forEach(i=>{
+    const sel = _horariosSeleccionados.includes(i);
+    const btn = document.getElementById(`btn-h-${i}`);
+    const chk = document.getElementById(`chk-h-${i}`);
+    if(btn){
+      btn.style.borderColor = sel ? 'var(--gold)' : 'var(--divider)';
+      btn.style.background  = sel ? '#fdf5e4' : '#fff';
+    }
+    if(chk){
+      chk.style.background  = sel ? 'var(--gold)' : '#fff';
+      chk.style.borderColor = sel ? 'var(--gold)' : 'var(--divider)';
+      chk.innerHTML = sel ? '<svg width="12" height="12" viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="#fff" stroke-width="2" fill="none"/></svg>' : '';
+    }
+  });
+}
+
+function renderDias(){
+  const cont = document.getElementById('dias-scroll');
+  if(!cont) return;
+  const fechas = getFechasDisponibles();
+  cont.innerHTML = fechas.map((f,i)=>{
+    const sel = _diasSeleccionados.includes(i);
+    const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const dias  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const d = f.fecha;
+    return `<button onclick="toggleDia(${i})" style="flex-shrink:0;width:64px;padding:10px 4px;border:2px solid ${sel?'var(--gold)':'var(--divider)'};border-radius:10px;background:${sel?'#fdf5e4':'#fff'};cursor:pointer;font-family:var(--font-body);text-align:center;position:relative">
+      <div style="font-size:.7rem;color:var(--muted);font-weight:600">${dias[d.getDay()]}</div>
+      <div style="font-size:1.3rem;font-weight:800;color:${sel?'var(--gold)':'var(--ink)'};line-height:1.1">${d.getDate()}</div>
+      <div style="font-size:.65rem;color:var(--muted)">${meses[d.getMonth()]}</div>
+      ${sel?`<div style="position:absolute;bottom:4px;right:4px;background:var(--gold);border-radius:50%;width:14px;height:14px;display:flex;align-items:center;justify-content:center"><svg width="8" height="8" viewBox="0 0 8 8"><polyline points="1,4 3,6 7,2" stroke="#fff" stroke-width="1.5" fill="none"/></svg></div>`:''}
+    </button>`;
+  }).join('');
+}
+
+function toggleDia(idx){
+  const pos = _diasSeleccionados.indexOf(idx);
+  if(pos >= 0) _diasSeleccionados.splice(pos, 1);
+  else _diasSeleccionados.push(idx);
+  renderDias();
+  actualizarBtnContinuar();
+}
+
+function actualizarBtnRapido(){
+  const btn = document.getElementById('btn-rapido-label');
+  if(!btn) return;
+  if(_horariosSeleccionados.length > 0){
+    const h = HORARIOS_CONFIG[_horariosSeleccionados[0]];
+    btn.textContent = `Lo más próximo luego de las ${h.desde}:00 →`;
+  } else {
+    btn.textContent = 'Lo más próximo disponible →';
+  }
+}
+
+function actualizarBtnContinuar(){
+  const btn  = document.getElementById('btn-ver-disponib');
+  const hint = document.getElementById('disponib-hint');
+  const total = _horariosSeleccionados.length + _diasSeleccionados.length;
+  const ok    = _horariosSeleccionados.length >= 1 && _diasSeleccionados.length >= 1;
+  if(btn){
+    btn.disabled   = !ok;
+    btn.style.opacity = ok ? '1' : '.5';
+    btn.style.cursor  = ok ? 'pointer' : 'not-allowed';
+  }
+  if(hint) hint.style.display = ok ? 'none' : 'block';
+}
+
+function usarDisponibilidadRapida(){
+  // Usar el primer horario seleccionado o flexible
+  const h = _horariosSeleccionados.length > 0
+    ? HORARIOS_CONFIG[_horariosSeleccionados[0]]
+    : { desde:9, hasta:21 };
+  _disponibilidad = 'flexible';
+  _franjas = [{ nombre: h.nombre||'Flexible', desde: h.desde, hasta: h.hasta }];
+  _disponibilidadGrilla = [];
+  _showPaso(2);
+  cargarSlots();
+}
+
+function confirmarNuevaDisponibilidad(){
+  if(_horariosSeleccionados.length < 1 || _diasSeleccionados.length < 1) return;
+  const fechas = getFechasDisponibles();
+  _disponibilidad = 'grilla';
+  _disponibilidadGrilla = [];
+  // Combinar cada horario × cada día seleccionado
+  _horariosSeleccionados.forEach(hi=>{
+    const h = HORARIOS_CONFIG[hi];
+    _diasSeleccionados.forEach(di=>{
+      const f = fechas[di];
+      _disponibilidadGrilla.push({
+        franja:   hi,
+        dia:      f.diaIdx,
+        nombre:   f.label,
+        desde:    h.desde,
+        hasta:    h.hasta,
+        fechaISO: f.fecha.toISOString().split('T')[0]
+      });
+    });
+  });
+  _showPaso(2);
+  cargarSlots();
+}
+
+/* ---- Grilla de disponibilidad (legacy) ---- */
 const DIAS = ['Lun','Mar','Mié','Jue','Vie'];
 const FRANJAS_NOMBRES = ['🌅 Mañana','🌤 Tarde','🌙 Noche'];
 let _franjas = [
@@ -2969,7 +3112,7 @@ function abrirVentanaLead(tipo, kg){
 function _showPaso(n){
   document.getElementById('modal-paso1').style.display  = n===1  ?'block':'none';
   document.getElementById('modal-paso15').style.display = n===1.5?'block':'none';
-  if(n===1.5){ _grillaSeleccionadas=[]; iniciarGrilla(); }
+  if(n===1.5){ iniciarNuevaDisponibilidad(); }
   document.getElementById('modal-paso2').style.display  = n===2  ?'block':'none';
   document.getElementById('modal-ok').style.display     = n===3  ?'block':'none';
 }
