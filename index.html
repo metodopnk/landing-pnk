@@ -2309,10 +2309,32 @@ function actualizarBtnContinuar(){
 }
 
 function usarDisponibilidadRapida(){
-  // Buscar los próximos slots sin filtro de franja (máxima disponibilidad)
-  _disponibilidad = 'flexible';
-  _disponibilidadGrilla = [];
+  if(_horariosSeleccionados.length > 0){
+    // Usar los horarios seleccionados pero buscar en todos los días
+    _disponibilidad = 'grilla';
+    _disponibilidadGrilla = [];
+    const fechas = getFechasDisponibles();
+    // Combinar horarios seleccionados × todos los días de las próximas 2 semanas
+    _horariosSeleccionados.forEach(hi=>{
+      const h = HORARIOS_CONFIG[hi];
+      fechas.forEach((f, di)=>{
+        _disponibilidadGrilla.push({
+          franja: hi, dia: f.diaIdx, nombre: f.label,
+          desde: h.desde, hasta: h.hasta,
+          fechaISO: f.fecha.toISOString().split('T')[0]
+        });
+      });
+    });
+  } else {
+    // Sin horario elegido — buscar los más próximos sin filtro
+    _disponibilidad = 'flexible';
+    _disponibilidadGrilla = [];
+  }
+  const grillaCopy = JSON.parse(JSON.stringify(_disponibilidadGrilla));
+  const dispCopy   = _disponibilidad;
   _showPaso(2);
+  _disponibilidad       = dispCopy;
+  _disponibilidadGrilla = grillaCopy;
   cargarSlots();
 }
 
@@ -2324,6 +2346,7 @@ function ampliarBusquedaSlots(){
 }
 
 function confirmarNuevaDisponibilidad(){
+  console.log('confirmarNuevaDisponibilidad - horarios:', _horariosSeleccionados, 'dias:', _diasSeleccionados);
   if(_horariosSeleccionados.length < 1 || _diasSeleccionados.length < 1) return;
   const fechas = getFechasDisponibles();
   _disponibilidad = 'grilla';
