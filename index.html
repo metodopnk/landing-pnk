@@ -1355,7 +1355,7 @@ a { color: inherit; text-decoration: none; }
           💬 Coordinar horario por WhatsApp
         </button>
       </div>
-      <button onclick="irAPaso1()" style="background:none;border:none;color:var(--muted);font-size:.85rem;cursor:pointer;margin-top:12px;font-family:var(--font-body)">← Volver</button>
+      <button onclick="_showPaso(1.5)" style="background:none;border:none;color:var(--muted);font-size:.85rem;cursor:pointer;margin-top:12px;font-family:var(--font-body)">← Volver</button>
     </div>
 
     <!-- PASO 3: Confirmación -->
@@ -2285,12 +2285,8 @@ function actualizarBtnContinuar(){
 }
 
 function usarDisponibilidadRapida(){
-  // Usar el primer horario seleccionado o flexible
-  const h = _horariosSeleccionados.length > 0
-    ? HORARIOS_CONFIG[_horariosSeleccionados[0]]
-    : { desde:9, hasta:21 };
+  // Buscar los próximos slots sin filtro de franja (máxima disponibilidad)
   _disponibilidad = 'flexible';
-  _franjas = [{ nombre: h.nombre||'Flexible', desde: h.desde, hasta: h.hasta }];
   _disponibilidadGrilla = [];
   _showPaso(2);
   cargarSlots();
