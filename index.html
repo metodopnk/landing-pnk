@@ -2164,6 +2164,24 @@ function actualizarCostoRango(){
 
 
 /* ---- Avisa de descuentos ---- */
+
+/* ---- Precios de consulta médica ---- */
+const PRECIOS_CONSULTA = {
+  evaluacion: { online: 960,  presencial: 1440 },
+  seguimiento: { online: 1200, presencial: 1800 },
+  reinicio:    { online: 1200, presencial: 1800 },
+};
+
+function getPrecioConsulta(){
+  const tipo = _tipoConsulta || 'evaluacion';
+  const mod  = _modalidad === 'online' ? 'online' : 'presencial';
+  return PRECIOS_CONSULTA[tipo]?.[mod] || 0;
+}
+
+function formatPrecio(p){
+  return '$' + p.toLocaleString('es-UY');
+}
+
 /* ---- Nueva UI de disponibilidad ---- */
 let _horariosSeleccionados = []; // índices 0=Mañana, 1=Tarde, 2=Noche
 let _diasSeleccionados = [];     // índices de fechas
@@ -3232,7 +3250,9 @@ function cargarSlots(){
       list.innerHTML=`<button class="slot-btn" onclick="coordinarPorWA()">💬 Coordinar por WhatsApp</button>`;
       return;
     }
-    list.innerHTML=data.slots.map((s,i)=>`
+    list.innerHTML=data.slots
+      .sort((a,b)=>new Date(a.inicio)-new Date(b.inicio))
+      .map((s,i)=>`
       <button class="slot-btn" data-idx="${i}" onclick='elegirSlot(this,${JSON.stringify(s)})'>
         <span style="font-size:1.2rem">📅</span>
         <div><div style="font-weight:700">${s.label}</div><div style="font-size:.78rem;opacity:.8">Médico: ${s.medico}</div></div>
@@ -3282,8 +3302,13 @@ function elegirSlot(btn,slot){
   if(confWrap){
     const tipoLabel = {'evaluacion':'Evaluación inicial','seguimiento':'Seguimiento','reinicio':'Reinicio'}[_tipoConsulta]||'Consulta';
     const ubicLabel = _modalidad==='online'?'Online':(_modalidad==='punta_carretas'?'Punta Carretas':'Parque Batlle');
+    const precio = getPrecioConsulta();
     document.getElementById('confirm-slot-resumen').textContent =
       `📅 ${slot.label} · ${tipoLabel} · ${ubicLabel}`;
+    const precioEl = document.getElementById('confirm-precio');
+    if(precioEl) precioEl.textContent = formatPrecio(precio);
+    const btnConf = document.getElementById('btn-confirmar-slot');
+    if(btnConf) btnConf.textContent = `✅ Confirmar turno — ${formatPrecio(precio)}`;
     confWrap.style.display = 'block';
   }
 }
