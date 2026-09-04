@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+}<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -2343,7 +2343,13 @@ function confirmarNuevaDisponibilidad(){
       });
     });
   });
+  // Guardar copia local para no perderla al cambiar de paso
+  const grillaCopy = JSON.parse(JSON.stringify(_disponibilidadGrilla));
+  const dispCopy   = _disponibilidad;
   _showPaso(2);
+  // Restaurar después del _showPaso que puede resetear
+  _disponibilidad      = dispCopy;
+  _disponibilidadGrilla = grillaCopy;
   cargarSlots();
 }
 
