@@ -1,4 +1,4 @@
-}<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -3259,6 +3259,8 @@ async function irAPaso2(){
 function irAPaso1(){ _showPaso(1); }
 
 function cargarSlots(){
+  console.log('cargarSlots llamado con _disponibilidad:', _disponibilidad, '| grilla:', JSON.stringify(_disponibilidadGrilla));
+  console.trace();
   const loading=document.getElementById('slots-loading');
   const list   =document.getElementById('slots-list');
   const errEl  =document.getElementById('slots-err');
