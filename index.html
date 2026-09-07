@@ -3124,7 +3124,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-07-cronograma-continuo-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-07-resumen-agenda-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
@@ -3176,11 +3176,6 @@ function setModalidad(btn){
 }
 
 function abrirModal(origen){
-  // Registrar según origen
-  if(origen==='hero')   registrar('agendar_hero');
-  if(origen==='footer') registrar('agendar_footer');
-  if(origen==='barra')  registrar('agendar_barra');
-  if(origen==='calc')   registrar('agendar_barra');
   _modalOrigen = origen; _kgRapidoPendiente = null;
   _tipoConsulta=''; _modalidad=''; _slotElegido=null;
   document.getElementById('modal-err').style.display='none';
@@ -3189,6 +3184,8 @@ function abrirModal(origen){
   _showPaso(1);
   document.getElementById('modal-bg').classList.add('open');
   document.getElementById('m-nombre').focus();
+  // Solo señal de Pixel al abrir el modal — el Sheet "Clientes Potenciales" se llena
+  // una única vez, en confirmarAgenda(), cuando el turno queda realmente reservado.
   if(window.fbq) fbq('track','InitiateCheckout',{content_name:'agenda_consulta',origen});
 }
 
@@ -3399,6 +3396,8 @@ function cargarSlots(){
       return;
     }
     const slotsOrdenados = data.slots.sort((a,b)=>new Date(a.inicio)-new Date(b.inicio));
+    // Solo Pixel — punto ciego del embudo: llegó a ver horarios disponibles.
+    if(window.fbq) fbq('trackCustom','vio_horarios',{modalidad:mod, tipo, cantidad:slotsOrdenados.length, ampliada:_disponibilidad==='variado'});
     const ubicLabelSlot = (s)=> s.modalidad==='online' ? 'Online' : (s.modalidad==='punta_carretas' ? 'Punta Carretas' : s.modalidad==='parque_batlle' ? 'Parque Batlle' : '');
     list.innerHTML=slotsOrdenados
       .map((s,i)=>{
@@ -3461,6 +3460,8 @@ function elegirSlot(btn,slot){
   // Si el turno trae su propia modalidad (modo 'variado', p.ej. la alternativa presencial↔online),
   // adoptarla para que el agendamiento y los textos usen la modalidad correcta de ESE turno.
   if(slot.modalidad){ _modalidad = slot.modalidad; }
+  // Solo Pixel — punto ciego del embudo: eligió un turno (todavía no confirmó).
+  if(window.fbq) fbq('trackCustom','eligio_horario',{modalidad:_modalidad, tipo:_tipoConsulta});
   // Mostrar botón de confirmación explícita
   const confWrap = document.getElementById('confirm-slot-wrap');
   if(confWrap){
@@ -3528,11 +3529,13 @@ async function confirmarAgenda(){
 
     // Guardar en Sheets/Calendar-log PRIMERO: si algo de la UI de abajo falla,
     // el registro del turno no debe perderse (el evento de Calendar ya se creó server-side).
-    registrar('agendar_hero', {
+    const botonOrigen = {hero:'agendar_hero', footer:'agendar_footer', barra:'agendar_barra', calc:'agendar_barra'}[_modalOrigen] || 'agendar_hero';
+    registrar(botonOrigen, {
       modalidad: _modalidad, tipo: _tipoConsulta,
       sede, medico: data.medico || '',
       turno: _slotElegido?.label || '', eventId: data.eventId || data.titulo || '',
-      linkRecordatorioWA: data.linkRecordatorioWA || ''
+      linkRecordatorioWA: data.linkRecordatorioWA || '',
+      precio: getPrecioConsulta() || ''
     });
 
     try {
