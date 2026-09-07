@@ -3093,7 +3093,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-07-slots-variado-v2'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-07-recordatorio-wa-v2-intl'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
@@ -3422,7 +3422,8 @@ async function confirmarAgenda(){
     telefono:  d.tel       || '',
     modalidad: _modalidad === 'online' ? 'online' : 'presencial',
     sede,
-    tipo:      _tipoConsulta || 'evaluacion'
+    tipo:      _tipoConsulta || 'evaluacion',
+    precio:    getPrecioConsulta() || ''
   });
 
   const cbName = 'pnkEvt_' + Date.now();
@@ -3450,7 +3451,8 @@ async function confirmarAgenda(){
     registrar('agendar_hero', {
       modalidad: _modalidad, tipo: _tipoConsulta,
       sede, medico: data.medico || '',
-      turno: _slotElegido?.label || '', eventId: data.eventId || data.titulo || ''
+      turno: _slotElegido?.label || '', eventId: data.eventId || data.titulo || '',
+      linkRecordatorioWA: data.linkRecordatorioWA || ''
     });
     if(window.fbq) fbq('track','Contact',{content_name:'agenda_confirmada'});
     _showPaso(3);
