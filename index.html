@@ -2339,9 +2339,9 @@ function usarDisponibilidadRapida(){
 }
 
 function ampliarBusquedaSlots(){
-  // Ampliar búsqueda a modo flexible (todos los horarios disponibles)
+  // Ampliar búsqueda: 1 opción por franja (mañana/tarde/noche) + 1 alternativa de modalidad (presencial↔online)
   _disponibilidadGrilla = [];
-  _disponibilidad = 'flexible';
+  _disponibilidad = 'variado';
   cargarSlots();
 }
 
@@ -3314,15 +3314,19 @@ function cargarSlots(){
       return;
     }
     const slotsOrdenados = data.slots.sort((a,b)=>new Date(a.inicio)-new Date(b.inicio));
+    const ubicLabelSlot = (s)=> s.modalidad==='online' ? 'Online' : (s.modalidad==='punta_carretas' ? 'Punta Carretas' : s.modalidad==='parque_batlle' ? 'Parque Batlle' : '');
     list.innerHTML=slotsOrdenados
-      .map((s,i)=>`
+      .map((s,i)=>{
+        const franjaTxt = s.franjaLabel ? `${s.franjaLabel} · ` : '';
+        const ubic = ubicLabelSlot(s);
+        return `
       <button class="slot-btn" data-idx="${i}" onclick='elegirSlot(this,${JSON.stringify(s)})'>
         <span style="font-size:1.2rem">📅</span>
-        <div><div style="font-weight:700">${s.label}</div><div style="font-size:.78rem;opacity:.8">Médico: ${s.medico}</div></div>
-      </button>`).join('');
+        <div><div style="font-weight:700">${franjaTxt}${s.label}</div><div style="font-size:.78rem;opacity:.8">Médico: ${s.medico}${ubic ? ' · '+ubic : ''}</div></div>
+      </button>`;}).join('');
 
-    // Si hay menos de 3 slots, mostrar botón "Ver más horarios"
-    if(slotsOrdenados.length < 3){
+    // Si hay menos de 3 slots, mostrar botón "Ver más horarios" (salvo que ya sea el resultado ampliado)
+    if(slotsOrdenados.length < 3 && _disponibilidad !== 'variado'){
       list.innerHTML += `<div style="margin-top:10px;text-align:center">
         <button onclick="ampliarBusquedaSlots()" style="background:none;border:1.5px solid var(--gold);color:var(--gold);border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--font-body)">
           📅 Ver más horarios disponibles
@@ -3369,6 +3373,9 @@ function renderSlotsError(msg){
 function elegirSlot(btn,slot){
   document.querySelectorAll('.slot-btn').forEach(b=>b.classList.remove('elegido'));
   btn.classList.add('elegido'); _slotElegido=slot;
+  // Si el turno trae su propia modalidad (modo 'variado', p.ej. la alternativa presencial↔online),
+  // adoptarla para que el agendamiento y los textos usen la modalidad correcta de ESE turno.
+  if(slot.modalidad){ _modalidad = slot.modalidad; }
   // Mostrar botón de confirmación explícita
   const confWrap = document.getElementById('confirm-slot-wrap');
   if(confWrap){
