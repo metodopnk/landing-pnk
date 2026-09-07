@@ -1705,10 +1705,10 @@ function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
   // Sobrantes de suplementos
   let sobranteSuple = { unicomplex: 0, sodio: 0, dha: 0 };
 
-  // Detalle de cada quincena real (cada control médico + compra), en orden cronológico
-  const quincenasDetalle = [];
-  let diaAcumulado = 0;
-
+  // 1) Calcular días y kg por paso (sin costos todavía — los costos se calculan
+  //    después, en ciclos de compra de 15 días CONTINUOS para todo el tratamiento,
+  //    para que la compra real coincida siempre con "cada 15 días desde el día 1"
+  //    y no se reinicie artificialmente en cada cambio de fase.
   const pasosCalc = pasosDef.map(p => {
     const diasM  = Math.round(p.semM  * p.prop * 7);
     const diasMi = Math.round(p.semMi * p.prop * 7);
@@ -1717,88 +1717,96 @@ function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
     const semMi  = Math.round(diasMi / 7);
     const semMx  = Math.round(diasMx / 7);
 
-    let costoProductos = 0;
-    let costoSuplementos = 0;
-    let quincenas = 0;
-
-    if(p.sobDia > 0){
-      quincenas = Math.max(1, Math.ceil(diasM / 15));
-
-      for(let q = 0; q < quincenas; q++){
-        const diasEstaQuincena = (q === quincenas - 1 && diasM % 15 > 0)
-          ? diasM % 15
-          : 15;
-        const sobresNec = p.sobDia * diasEstaQuincena;
-        const rPrep = cajasNecesarias(sobresNec, CAJA_PREP.u, sobrantePrep);
-        sobrantePrep   = rPrep.nuevoSobrante;
-        costoProductos += rPrep.costo;
-
-        // Suplementos proporcionales a los días reales
-        let costoSuplementosQ = 0;
-        Object.entries(SUPLES).forEach(([nombre, s]) => {
-          if(s.pasos.includes(p.paso)){
-            const necesarios = Math.ceil(s.dosis * diasEstaQuincena);
-            const sob = sobranteSuple[nombre] || 0;
-            const neto = Math.max(0, necesarios - sob);
-            const cajas = Math.ceil(neto / s.u);
-            const compradas = cajas * s.u;
-            sobranteSuple[nombre] = compradas + sob - necesarios;
-            costoSuplementosQ += cajas * s.precio;
-          }
-        });
-        costoSuplementos += costoSuplementosQ;
-
-        diaAcumulado += diasEstaQuincena;
-        quincenasDetalle.push({
-          paso: p.paso,
-          tipo: p.tipo,
-          diaInicio: diaAcumulado - diasEstaQuincena + 1,
-          diaFin: diaAcumulado,
-          diasEstaQuincena,
-          costoProductos: rPrep.costo,
-          costoSuplementos: costoSuplementosQ,
-          costoTotal: rPrep.costo + costoSuplementosQ,
-        });
-      }
-    }
-
-    const costoTotal = costoProductos + costoSuplementos;
-    totalCosto += costoTotal;
-
     semAcum += semM;
     if(p.paso < 5) pasoSemInicio.push(semAcum);
 
-    return { ...p, diasM, semM, semMi, semMx,
-      costoMin: costoTotal * 0.85,
-      costoMax: costoTotal * 1.15,
-      costoTotal, costoProductos, costoSuplementos, quincenas,
-      totalSobres: p.sobDia * diasM
-    };
+    return { ...p, diasM, semM, semMi, semMx, totalSobres: p.sobDia * diasM };
   });
 
-  // Fusionar colas de quincena muy cortas (pocos días sobrantes, a veces con costo $0
-  // porque ya lo cubre una caja sobrante anterior) con la quincena previa, para no
-  // mostrar un "control médico" casi vacío.
-  for(let i = quincenasDetalle.length - 1; i > 0; i--){
-    if(quincenasDetalle[i].diasEstaQuincena < 5){
-      const anterior = quincenasDetalle[i-1];
-      const actual   = quincenasDetalle[i];
-      anterior.diaFin            = actual.diaFin;
-      anterior.diasEstaQuincena += actual.diasEstaQuincena;
-      anterior.costoProductos   += actual.costoProductos;
-      anterior.costoSuplementos += actual.costoSuplementos;
-      anterior.costoTotal       += actual.costoTotal;
-      quincenasDetalle.splice(i, 1);
+  // 2) Línea de tiempo continua de días con compra (excluye Paso 5, que no lleva alimentación PnK)
+  const segmentosDias = pasosCalc.filter(p => p.sobDia > 0).map(p => ({ paso: p.paso, tipo: p.tipo, sobDia: p.sobDia, dias: p.diasM }));
+  const totalDiasConCompra = segmentosDias.reduce((a, s) => a + s.dias, 0);
+
+  // 3) Trocear esa línea de tiempo en ciclos de 15 días corridos (el último puede ser más corto).
+  //    Un ciclo puede abarcar más de un paso si la transición de fase cae en medio del ciclo.
+  const quincenasDetalle = [];
+  let segIdx = 0, diaDentroSegmento = 0, diaActual = 0;
+
+  while (diaActual < totalDiasConCompra && segIdx < segmentosDias.length) {
+    const diasEnEsteBloque = Math.min(15, totalDiasConCompra - diaActual);
+    let restante = diasEnEsteBloque;
+    let sobresNecBloque = 0;
+    let costoSuplementosBloque = 0;
+    const diasPorPaso = {}; // para elegir el paso predominante del bloque (por si hay transición en el medio)
+
+    while (restante > 0 && segIdx < segmentosDias.length) {
+      const seg = segmentosDias[segIdx];
+      const diasDisponibles = seg.dias - diaDentroSegmento;
+      const diasAUsar = Math.min(restante, diasDisponibles);
+
+      sobresNecBloque += seg.sobDia * diasAUsar;
+      diasPorPaso[seg.paso] = (diasPorPaso[seg.paso] || 0) + diasAUsar;
+
+      // Suplementos de este tramo del bloque (según el paso al que pertenece)
+      Object.entries(SUPLES).forEach(([nombre, s]) => {
+        if(s.pasos.includes(seg.paso)){
+          const necesarios = Math.ceil(s.dosis * diasAUsar);
+          const sob = sobranteSuple[nombre] || 0;
+          const neto = Math.max(0, necesarios - sob);
+          const cajas = Math.ceil(neto / s.u);
+          const compradas = cajas * s.u;
+          sobranteSuple[nombre] = compradas + sob - necesarios;
+          costoSuplementosBloque += cajas * s.precio;
+        }
+      });
+
+      diaDentroSegmento += diasAUsar;
+      restante -= diasAUsar;
+
+      if(diaDentroSegmento >= seg.dias){ segIdx++; diaDentroSegmento = 0; }
+    }
+
+    // Paso predominante del bloque = el que aportó más días (no simplemente el último tocado)
+    const pasoRepresentativo = Object.entries(diasPorPaso).sort((a,b)=>b[1]-a[1])[0][0] * 1;
+    const tipoRepresentativo = segmentosDias.find(s => s.paso === pasoRepresentativo)?.tipo;
+
+    const rPrep = cajasNecesarias(sobresNecBloque, CAJA_PREP.u, sobrantePrep);
+    sobrantePrep = rPrep.nuevoSobrante;
+
+    const diaInicio = diaActual + 1;
+    diaActual += diasEnEsteBloque;
+
+    quincenasDetalle.push({
+      paso: pasoRepresentativo,
+      tipo: tipoRepresentativo,
+      diaInicio, diaFin: diaActual,
+      diasEstaQuincena: diasEnEsteBloque,
+      costoProductos: rPrep.costo,
+      costoSuplementos: costoSuplementosBloque,
+      costoTotal: rPrep.costo + costoSuplementosBloque,
+    });
+  }
+
+  // Si el tratamiento no cierra justo en un múltiplo de 15, puede quedar un remanente
+  // final muy corto (pocos días) — lo fusionamos con la quincena anterior en vez de
+  // mostrar una tarjeta casi vacía.
+  if(quincenasDetalle.length > 1){
+    const ultima = quincenasDetalle[quincenasDetalle.length - 1];
+    if(ultima.diasEstaQuincena < 5){
+      const anterior = quincenasDetalle[quincenasDetalle.length - 2];
+      anterior.diaFin            = ultima.diaFin;
+      anterior.diasEstaQuincena += ultima.diasEstaQuincena;
+      anterior.costoProductos   += ultima.costoProductos;
+      anterior.costoSuplementos += ultima.costoSuplementos;
+      anterior.costoTotal       += ultima.costoTotal;
+      quincenasDetalle.pop();
     }
   }
 
-  // Inversión inicial = costo real de la primera quincena (Paso 1)
-  const primerPaso = pasosCalc[0];
-  const inversionInicial = primerPaso && primerPaso.costoTotal > 0
-    ? Math.round(primerPaso.costoTotal / Math.max(1, primerPaso.quincenas))
-    : Math.round(totalCosto * 0.05);
+  totalCosto = quincenasDetalle.reduce((a, q) => a + q.costoTotal, 0);
 
   // Desglose de la primera quincena para mostrar en el panel
+  const primerPaso = pasosCalc[0];
   const q1AlimSobresComprados = Math.ceil((primerPaso?.sobDia||4) * 15 / CAJA_PREP.u) * CAJA_PREP.u;
   const q1AlimSobresUsados    = (primerPaso?.sobDia||4) * 15;
   const q1AlimSobrantes       = q1AlimSobresComprados - q1AlimSobresUsados;
@@ -3116,7 +3124,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-07-cronograma-quincenas-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-07-cronograma-continuo-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
