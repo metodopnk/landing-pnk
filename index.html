@@ -1449,6 +1449,7 @@ const IMGS_B64 = {
 };
 
 
+// Cambia la pestaña activa del carrusel de productos (categoría elegida).
 function setTab(tab){
   document.querySelectorAll('.tab-btn').forEach(b=>{
     const activo = b.dataset.tab === tab;
@@ -1460,6 +1461,7 @@ function setTab(tab){
   renderCarousel(tab);
 }
 
+// Muestra el carrusel de productos recomendados y dibuja la primera pestaña.
 function mostrarCarousel(){
   const el = document.getElementById('producto-carousel');
   if(!el) return;
@@ -1468,6 +1470,7 @@ function mostrarCarousel(){
   if(track && track.children.length === 0) renderCarousel('listos');
 }
 
+// Dibuja las tarjetas de producto de la categoría (tab) elegida en el carrusel.
 function renderCarousel(tab){
   const track = document.getElementById('carousel-track');
   if(!track) return;
@@ -1482,10 +1485,13 @@ function renderCarousel(tab){
 }
 
 
+// Traduce el 'tipo' interno del paso ('interv'/'clave') a un nombre de fase legible.
 function faseLabelQuincena(tipo){
   return tipo === 'interv' ? 'Cetogénica' : 'Reintroducción';
 }
 
+// Arma el cronograma de inversión: una tarjeta por cada control médico real (cada
+// 15 días corridos), con el costo específico de esa quincena según la fase del tratamiento.
 function mostrarSeguimiento(calc, kg){
   // Sección A — strip
   const strip = document.getElementById('seguimiento-strip');
@@ -1533,6 +1539,7 @@ const IMC_COLORES = [
   { max:999,  bg:'#c23b2b', label:'Obesidad'   }
 ];
 
+// Actualiza los datos (kg, semanas, IMC) de la barra fija que aparece al scrollear.
 function actualizarBarraFija(imc, kg, semanas){
   const barraKg  = document.getElementById('barra-kg');
   const barraSem = document.getElementById('barra-sem');
@@ -1587,6 +1594,9 @@ window.addEventListener('load', ()=>{
 const SESSION_ID = 'pnk_' + Date.now() + '_' + Math.random().toString(36).substr(2,6);
 let _filaNum = null; // número de fila en el Sheet para esta sesión
 
+// Guarda una acción del usuario en el backend (Sheets), vía JSONP hacia el Apps
+// Script. 'boton' identifica QUÉ pasó (ver WA_COLS y los distintos 'boton' en el
+// backend); 'extra' son datos adicionales específicos de esa acción.
 function registrar(boton, extra){
   const d    = datosPaciente;
   const lead = d.lead || {};
@@ -1872,6 +1882,7 @@ const LEAD_FORM_URL = 'pnk-lead-form.html';
 let _ventanaLead = null;
 let _kgPendiente = null;
 
+// Chequea en localStorage si ya existe un lead guardado (nombre/tel completos).
 function leadConfirmado(){
   try{
     const d = JSON.parse(localStorage.getItem('pnk_lead')||'{}');
@@ -1880,6 +1891,10 @@ function leadConfirmado(){
   }catch(e){ return false; }
 }
 
+// ⚠ FUNCIÓN NO USADA: hay otra función abrirVentanaLead más abajo (línea ~3192)
+// que la redefine por completo. En JavaScript la última definición gana, así que
+// esta versión (que abría una ventana popup aparte) nunca se ejecuta hoy — quedó
+// de un enfoque anterior. Se deja documentada por si se quiere revisar o eliminar.
 function abrirVentanaLead(tipo, kg){
   _kgPendiente = tipo==='rapido' ? kg : null;
   const url = LEAD_FORM_URL + (kg ? '?kg='+kg : '');
@@ -1905,6 +1920,7 @@ window.pnkLeadRecibido = function(){
   }
 };
 
+// Saca el bloqueo/overlay de la calculadora una vez que el lead ya completó sus datos.
 function desbloquearCalculadora(){
   // Restaurar botones rápidos originales
   const btnsWrap = document.getElementById('btns-rapidos');
@@ -1934,6 +1950,7 @@ function desbloquearCalculadora(){
   }catch(e){}
 }
 
+// Tapa la calculadora con un overlay hasta que la persona complete el formulario de lead.
 function bloquearCalculadora(){
   // Botones rápidos: reemplazar por un solo botón de acción
   const btnsWrap = document.getElementById('btns-rapidos');
@@ -1980,6 +1997,7 @@ window.addEventListener('load', ()=>{
    CALCULADORA COMPLETA (desde los campos del formulario)
    ================================================================ */
 
+// Muestra un panel de aviso dentro de la sección de agenda, con un mensaje puntual.
 function mostrarPanelAgenda(contenedor, mensaje){
   let panel = document.getElementById('panel-agenda-50');
   if(!panel){
@@ -1994,10 +2012,14 @@ function mostrarPanelAgenda(contenedor, mensaje){
   panel.style.display = 'block';
 }
 
+// Oculta el panel de aviso de la sección de agenda.
 function ocultarPanelAgenda(){
   const panel = document.getElementById('panel-agenda-50');
   if(panel) panel.style.display = 'none';
 }
+// Ejecuta el cálculo completo de peso ideal a partir de los datos del formulario
+// principal (sexo, edad, altura, peso), muestra los resultados y registra el evento
+// 'calcular' (Sheet + Pixel Lead).
 function calcular(){
   if(!leadConfirmado()){abrirVentanaLead('completo');return;}
   const edad   = parseFloat(document.getElementById('c-edad').value);
@@ -2095,6 +2117,8 @@ function iconosSobres(n){
   return h+'</div>';
 }
 
+// Dibuja las tarjetas de cada paso del tratamiento (kg, semanas, sobres por día,
+// dieta) y dispara el cálculo de suplementos y del cronograma de inversión.
 function renderPasos(calc){
   const { pasosDef, costoMedio } = calc;
   const diasCeto = Math.round((calc.kgCeto / CONFIG.ritmos.medio.kgSem) * 7);
@@ -2180,6 +2204,8 @@ const SUPLES_DISPLAY = [
   { nombre:'DHA',        dosis:1, unidades:60, precio:83, soloCeto:false }, // todo el tratamiento
 ];
 
+// Calcula cuántas cajas de cada suplemento (Unicomplex, Sodio, DHA) hacen falta
+// para todo el tratamiento, y arma la tabla que se muestra en pantalla.
 function calcularSuplementos(diasCeto, diasTotal){
   let totalSuple = 0;
   SUPLES_DISPLAY.forEach(s => {
@@ -2195,6 +2221,7 @@ function calcularSuplementos(diasCeto, diasTotal){
   // NO llamar recalcularTotal aquí — evita sobreescribir costoMedio correcto
 }
 
+// Prende/apaga si el costo de los suplementos se suma al total mostrado.
 function toggleIncluirSuplementos(){
   const checked = document.getElementById('suple-toggle').checked;
   const track   = document.getElementById('suple-toggle-track');
@@ -2206,11 +2233,13 @@ function toggleIncluirSuplementos(){
   recalcularTotal();
 }
 
+// Vuelve a sumar el costo total (productos + suplementos, según corresponda) y actualiza el precio en pantalla.
 function recalcularTotal(){
   const total = datosPaciente.costoMedio || 0;
   renderCuotas(total, datosPaciente.inversionInicial);
 }
 
+// Actualiza el rango de costo estimado (mínimo-máximo) mostrado en el resultado.
 function actualizarCostoRango(){
   const base   = datosPaciente.costoBase  || 0;
   const pct    = datosPaciente.descuento  || 0;
@@ -2234,12 +2263,15 @@ const PRECIOS_CONSULTA = {
   reinicio:    { online: 1200, presencial: 1800 },
 };
 
+// Devuelve el precio de la consulta según el tipo (evaluación/seguimiento/reinicio)
+// y la modalidad (online/presencial) actualmente elegidos, usando la tabla PRECIOS_CONSULTA.
 function getPrecioConsulta(){
   const tipo = _tipoConsulta || 'evaluacion';
   const mod  = _modalidad === 'online' ? 'online' : 'presencial';
   return PRECIOS_CONSULTA[tipo]?.[mod] || 0;
 }
 
+// Da formato de precio en pesos uruguayos a un número (ej. 1500 → '$1.500').
 function formatPrecio(p){
   return '$' + p.toLocaleString('es-UY');
 }
@@ -2254,6 +2286,7 @@ const HORARIOS_CONFIG = [
   { nombre:'Noche',  emoji:'🌙', desde:18, hasta:21 },
 ];
 
+// Resetea la selección de horarios/días para armar una nueva 'grilla' de disponibilidad.
 function iniciarNuevaDisponibilidad(){
   _horariosSeleccionados = [];
   _diasSeleccionados = [];
@@ -2263,6 +2296,7 @@ function iniciarNuevaDisponibilidad(){
   actualizarBtnContinuar();
 }
 
+// Prende/apaga una franja horaria (mañana/tarde/noche) dentro del selector de disponibilidad.
 function toggleHorario(idx){
   const pos = _horariosSeleccionados.indexOf(idx);
   if(pos >= 0) _horariosSeleccionados.splice(pos, 1);
@@ -2272,6 +2306,7 @@ function toggleHorario(idx){
   actualizarBtnContinuar();
 }
 
+// Dibuja los botones de franja horaria (mañana/tarde/noche) del selector de disponibilidad.
 function renderHorarios(){
   [0,1,2].forEach(i=>{
     const sel = _horariosSeleccionados.includes(i);
@@ -2289,6 +2324,7 @@ function renderHorarios(){
   });
 }
 
+// Dibuja los botones de día de la semana del selector de disponibilidad.
 function renderDias(){
   const cont = document.getElementById('dias-scroll');
   if(!cont) return;
@@ -2307,6 +2343,7 @@ function renderDias(){
   }).join('');
 }
 
+// Prende/apaga un día de la semana dentro del selector de disponibilidad.
 function toggleDia(idx){
   const pos = _diasSeleccionados.indexOf(idx);
   if(pos >= 0) _diasSeleccionados.splice(pos, 1);
@@ -2315,6 +2352,7 @@ function toggleDia(idx){
   actualizarBtnContinuar();
 }
 
+// Habilita/deshabilita el botón de búsqueda rápida según haya al menos un día y horario elegidos.
 function actualizarBtnRapido(){
   const btn = document.getElementById('btn-rapido-label');
   if(!btn) return;
@@ -2326,6 +2364,7 @@ function actualizarBtnRapido(){
   }
 }
 
+// Habilita/deshabilita el botón de continuar del selector de disponibilidad en grilla.
 function actualizarBtnContinuar(){
   const btn  = document.getElementById('btn-ver-disponib');
   const hint = document.getElementById('disponib-hint');
@@ -2339,6 +2378,7 @@ function actualizarBtnContinuar(){
   if(hint) hint.style.display = ok ? 'none' : 'block';
 }
 
+// Arma la búsqueda de horarios usando los días/franjas elegidos en modo rápido (no grilla completa).
 function usarDisponibilidadRapida(){
   if(_horariosSeleccionados.length > 0){
     // Usar los horarios seleccionados pero buscar en todos los días
@@ -2369,6 +2409,8 @@ function usarDisponibilidadRapida(){
   cargarSlots();
 }
 
+// Pide el modo 'variado' al backend (2 turnos en la modalidad actual + 1 alternativa
+// de modalidad), para el botón "Ver más horarios disponibles".
 function ampliarBusquedaSlots(){
   // Ampliar búsqueda: 1 opción por franja (mañana/tarde/noche) + 1 alternativa de modalidad (presencial↔online)
   _disponibilidadGrilla = [];
@@ -2376,6 +2418,7 @@ function ampliarBusquedaSlots(){
   cargarSlots();
 }
 
+// Guarda la nueva disponibilidad elegida (días/horarios) y dispara la búsqueda de turnos.
 function confirmarNuevaDisponibilidad(){
   console.log('confirmarNuevaDisponibilidad - horarios:', _horariosSeleccionados, 'dias:', _diasSeleccionados);
   if(_horariosSeleccionados.length < 1 || _diasSeleccionados.length < 1) return;
@@ -2418,10 +2461,12 @@ let _franjas = [
 let _grillaSeleccionadas = []; // [{franja:0,dia:0}, ...]
 let _franjaEditando = null;
 
+// Prepara la grilla completa de disponibilidad (día × franja horaria) para que el usuario elija celdas.
 function iniciarGrilla(){
   renderGrilla();
 }
 
+// Calcula las próximas fechas hábiles a mostrar como columnas de la grilla de disponibilidad.
 function getFechasDisponibles(){
   // Generar fechas reales de la semana actual y siguiente (solo Lun-Vie)
   const hoy = new Date();
@@ -2449,6 +2494,7 @@ function getFechasDisponibles(){
   return fechas;
 }
 
+// Dibuja la grilla completa de disponibilidad (filas=franjas, columnas=fechas).
 function renderGrilla(){
   const tbody = document.getElementById('grilla-body');
   if(!tbody) return;
@@ -2481,18 +2527,21 @@ function renderGrilla(){
   actualizarContadorGrilla();
 }
 
+// Chequea si una celda de la grilla (franja+fecha) está bloqueada por alguna restricción.
 function esCeldaBloqueadaFecha(franjaIdx, fecha){
   const f = _franjas[franjaIdx];
   if(_modalidad === 'punta_carretas' && f.desde >= 18) return true;
   return false;
 }
 
+// Chequea si una celda de la grilla (franja+día de la semana) está bloqueada por alguna restricción.
 function esCeldaBloqueada(fi, di){
   const f = _franjas[fi];
   if(_modalidad === 'punta_carretas' && f.desde >= 18) return true;
   return false;
 }
 
+// Selecciona/deselecciona una celda puntual (franja+fecha) de la grilla de disponibilidad.
 function toggleCeldaFecha(fi, fechaIdx){
   const fechas = getFechasDisponibles();
   const fecha  = fechas[fechaIdx];
@@ -2513,12 +2562,14 @@ function toggleCeldaFecha(fi, fechaIdx){
   renderGrilla();
 }
 
+// Selecciona/deselecciona una celda (franja+día de la semana) de la grilla de disponibilidad.
 function toggleCeldaGrilla(fi, di){
   const fechas = getFechasDisponibles();
   const fechaIdx = fechas.findIndex(f => f.diaIdx === di);
   if(fechaIdx >= 0) toggleCeldaFecha(fi, fechaIdx);
 }
 
+// Actualiza el contador de celdas elegidas en la grilla de disponibilidad.
 function actualizarContadorGrilla(){
   const n = _grillaSeleccionadas.length;
   const el = document.getElementById('grilla-contador');
@@ -2531,6 +2582,7 @@ function actualizarContadorGrilla(){
   }
 }
 
+// Abre el editor de una franja horaria puntual dentro de la grilla de disponibilidad.
 function editarFranja(idx){
   _franjaEditando = idx;
   const f = _franjas[idx];
@@ -2553,6 +2605,7 @@ function editarFranja(idx){
   if(editor) editor.style.display = 'block';
 }
 
+// Guarda los cambios hechos en el editor de una franja horaria de la grilla.
 function actualizarFranja(){
   if(_franjaEditando === null) return;
   const desde = parseInt(document.getElementById('franja-desde').value);
@@ -2563,11 +2616,13 @@ function actualizarFranja(){
   renderGrilla();
 }
 
+// Cierra el editor de franja horaria sin perder la selección ya hecha.
 function cerrarEditorFranja(){
   document.getElementById('franja-editor').style.display = 'none';
   _franjaEditando = null;
 }
 
+// Confirma la disponibilidad elegida en modo grilla completa y dispara la búsqueda de turnos.
 function confirmarDisponibilidadGrilla(){
   if(_grillaSeleccionadas.length < 2){
     const errEl = document.getElementById('err-paso15');
@@ -2591,6 +2646,7 @@ function confirmarDisponibilidadGrilla(){
 /* ---- Seguro médico con descuento 20% ---- */
 let _seguroActivo = '';
 
+// Marca qué seguro médico indicó tener el usuario (para el descuento del 20%) y actualiza el aviso en pantalla.
 function setSeguro(btn, nombre){
   document.querySelectorAll('.btn-seguro').forEach(b => {
     b.style.background  = '#fff';
@@ -2612,6 +2668,7 @@ function setSeguro(btn, nombre){
   }
 }
 
+// Muestra/oculta el panel para dejar contacto y que le avisen cuando haya descuentos.
 function toggleAvisaDescuento(){
   const panel = document.getElementById('avisa-desc-panel');
   const btn   = document.getElementById('btn-avisa-desc');
@@ -2621,6 +2678,7 @@ function toggleAvisaDescuento(){
   if(!abierto) document.getElementById('avisa-contacto').focus();
 }
 
+// Guarda el contacto para aviso de descuentos ('avisa_descuento') y confirma en pantalla.
 function enviarAvisaDescuento(){
   const contacto = document.getElementById('avisa-contacto').value.trim();
   const errEl    = document.getElementById('avisa-err');
@@ -2646,6 +2704,7 @@ function enviarAvisaDescuento(){
 let _kgPercepcion = null;
 let _kgCalculado  = null;
 
+// Marca si el objetivo de kg a bajar es el calculado automáticamente o el que percibe el propio usuario.
 function elegirObjetivo(tipo){
   const kg = tipo === 'imc' ? _kgCalculado : _kgPercepcion;
   if(!kg || kg <= 0) return;
@@ -2662,6 +2721,7 @@ function elegirObjetivo(tipo){
   recalcularConKg(kg);
 }
 
+// Muestra el selector de kg objetivo (calculado vs. percepción propia) con el desglose de la primera compra.
 function mostrarSelectorKg(kgCalc, kgPerc, invInicial, desglose){
   _kgCalculado  = parseFloat(kgCalc)  || null;
   _kgPercepcion = parseFloat(kgPerc)  || _kgCalculado;
@@ -2714,6 +2774,7 @@ function mostrarSelectorKg(kgCalc, kgPerc, invInicial, desglose){
   elegirObjetivo('percepcion');
 }
 
+// Dibuja el desglose de la primera quincena (alimentación + suplementos + sobrantes) en el panel correspondiente.
 function actualizarDesglose(d, inv){
   if(!d) return;
   const invLabel  = document.getElementById('inv-inicial-label');
@@ -2738,11 +2799,13 @@ function actualizarDesglose(d, inv){
   if(sobraEl)   sobraEl.innerHTML = `USD $${d.sobranteTotal.toLocaleString('es-UY')} = <span id="inv-sobra-alim">🥗 ${d.alimSobrantes} sobres</span> + <span id="inv-sobra-suple">💊 ${supleNombres}</span>`;
 }
 
+// Actualiza el texto que muestra el kg objetivo elegido en el selector.
 function actualizarSelectorDisplay(kg){
   const valEl = document.getElementById('kg-selector-val');
   if(valEl) valEl.textContent = parseFloat(kg).toFixed(1) + ' kg';
 }
 
+// Reacciona al mover el selector de kg objetivo, recalculando todo con el nuevo valor.
 function onKgSelectorChange(val){
   const kg = parseFloat(val);
   actualizarSelectorDisplay(kg);
@@ -2771,6 +2834,7 @@ function onKgSelectorChange(val){
   }
 }
 
+// Vuelve a correr todo el cálculo (pasos, cronograma, suplementos) para un kg objetivo distinto al inicial.
 function recalcularConKg(kg){
   if(!kg || kg <= 0) return;
   try {
@@ -2811,6 +2875,7 @@ function recalcularConKg(kg){
   }
 }
 
+// Cambia el cálculo para usar el kg que el propio usuario indicó querer bajar (en vez del calculado por IMC).
 function usarKgPercepcion(){
   const slider = document.getElementById('input-kg-selector');
   if(slider && _kgPercepcion) slider.value = _kgPercepcion;
@@ -2819,6 +2884,7 @@ function usarKgPercepcion(){
   _activarBtnKg('perc');
 }
 
+// Vuelve a usar el kg objetivo calculado automáticamente por IMC (en vez del de percepción propia).
 function usarKgCalculado(){
   const slider = document.getElementById('input-kg-selector');
   if(slider && _kgCalculado) slider.value = _kgCalculado;
@@ -2827,6 +2893,7 @@ function usarKgCalculado(){
   _activarBtnKg('calc');
 }
 
+// Marca visualmente cuál de los dos botones (calculado/percepción) está activo.
 function _activarBtnKg(cual){
   const bp = document.getElementById('btn-kg-perc');
   const bc = document.getElementById('btn-kg-calc');
@@ -2843,6 +2910,7 @@ const VIZ_DESC = {
   5: 'Plan nutricional · sin alimentación PnK',
 };
 
+// Redibuja la visualización de etapas del tratamiento (gráfico) con los datos recalculados.
 function actualizarVizEtapas(calc, kg){
   const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
 
@@ -2968,6 +3036,7 @@ function renderCuotas(total){
   datosPaciente.cuota6  = saldoInicial > 0 ? Math.round(saldoInicial/6) : 0;
 }
 
+// Recalcula el plan de cuotas financiado según el total y la entrega inicial elegidos.
 function actualizarFinanciado(total){
   const entrega = parseFloat(document.getElementById('entrega-parcial').value)||0;
   const saldo   = Math.max(0, total - entrega);
@@ -2984,6 +3053,7 @@ function actualizarFinanciado(total){
   _actualizarDisplayCuota(n, saldo);
 }
 
+// Selecciona una cantidad de cuotas puntual del plan de financiamiento.
 function selCuota(btn, total){
   document.querySelectorAll('.btn-cuota').forEach(b=>{
     const activo = b===btn;
@@ -2997,6 +3067,7 @@ function selCuota(btn, total){
   _actualizarDisplayCuota(+btn.dataset.n, saldo);
 }
 
+// Actualiza en pantalla el monto por cuota según la cantidad de cuotas elegida.
 function _actualizarDisplayCuota(n, saldo){
   const cuota = saldo > 0 ? Math.round(saldo/n) : 0;
   const lbl   = document.getElementById('cuota-label');
@@ -3124,7 +3195,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-07-resumen-agenda-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-07-codigo-comentado-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
@@ -3134,6 +3205,7 @@ let _slotElegido    = null;
 let _disponibilidad = 'flexible';
 let _disponibilidadGrilla = [];
 
+// Guarda qué franja horaria simple (mañana/tarde/noche/flexible) eligió el usuario para agendar.
 function setDisponibilidad(franja){
   _disponibilidad = franja;
 
@@ -3155,6 +3227,7 @@ function setDisponibilidad(franja){
   cargarSlots();
 }
 
+// Chequea compatibilidad franja+modalidad (ej. Punta Carretas sin atención al mediodía) antes de buscar turnos.
 function validarFranjaModalidad(franja, modalidad){
   // Punta Carretas no tiene turno al mediodía para Dra. Machado
   if(modalidad === 'punta_carretas' && franja === 'post_trabajo'){
@@ -3163,12 +3236,14 @@ function validarFranjaModalidad(franja, modalidad){
   return null; // sin conflicto
 }
 
+// Guarda el tipo de consulta elegido (evaluación/seguimiento/reinicio) y marca el botón activo.
 function setTipo(btn){
   _tipoConsulta = btn.dataset.tipo;
   document.querySelectorAll('.btn-tipo[data-tipo]').forEach(b=>b.classList.remove('activo'));
   btn.classList.add('activo');
 }
 
+// Guarda la modalidad elegida (online/Punta Carretas/Parque Batlle) y marca el botón activo.
 function setModalidad(btn){
   _modalidad = btn.dataset.mod;
   document.querySelectorAll('.btn-tipo[data-mod]').forEach(b=>b.classList.remove('activo'));
@@ -3189,6 +3264,9 @@ function abrirModal(origen){
   if(window.fbq) fbq('track','InitiateCheckout',{content_name:'agenda_consulta',origen});
 }
 
+// Función REAL usada hoy (sobreescribe la de más arriba). Abre el modal de datos
+// para el flujo de calculadora ('calc'/'rapido'), mostrando u ocultando los campos
+// de tipo/modalidad según si además va a terminar en agendar un turno.
 function abrirVentanaLead(tipo, kg){
   _modalOrigen = tipo==='rapido'?'rapido':'calc';
   _kgRapidoPendiente = tipo==='rapido'?kg:null;
@@ -3215,6 +3293,7 @@ function abrirVentanaLead(tipo, kg){
   document.getElementById('m-nombre').focus();
 }
 
+// Muestra el paso 'n' del modal (1=datos, 1.5=tipo/modalidad, 2=horarios, 3=confirmación) y oculta los demás.
 function _showPaso(n){
   document.getElementById('modal-paso1').style.display  = n===1  ?'block':'none';
   document.getElementById('modal-paso15').style.display = n===1.5?'block':'none';
@@ -3223,6 +3302,7 @@ function _showPaso(n){
   document.getElementById('modal-ok').style.display     = n===3  ?'block':'none';
 }
 
+// Precompleta el formulario del modal con los datos guardados en localStorage de una visita anterior.
 function _prefillDesdeStorage(){
   try{
     const d=JSON.parse(localStorage.getItem('pnk_lead')||'{}');
@@ -3239,6 +3319,7 @@ function cerrarModal(){ document.getElementById('modal-bg').classList.remove('op
 document.getElementById('modal-bg').addEventListener('click',function(e){ if(e.target===this) cerrarModal(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') cerrarModal(); });
 
+// Selecciona un horario puntual dentro de algún selector secundario de horarios.
 function setHorario(btn,val){
   horario=val;
   document.querySelectorAll('.horario-btn').forEach(b=>b.setAttribute('aria-pressed','false'));
@@ -3250,6 +3331,7 @@ const RX_NOMBRE = /^[A-Za-zÀ-ÖØ-öø-ÿ' -]{2,60}$/;   // solo letras (con ac
 const RX_TEL    = /^\+?[0-9()\s-]{8,20}$/;            // dígitos y símbolos comunes de teléfono
 const RX_EMAIL  = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;  // email básico
 
+// Cuenta los dígitos reales de un teléfono ingresado (para la validación de formato).
 function telTieneSuficientesDigitos(tel){
   return (String(tel||'').match(/\d/g) || []).length >= 8;
 }
@@ -3296,6 +3378,9 @@ function validarCamposYPintar(campos){
   return primerError;
 }
 
+// Valida los campos del paso 1 del modal (formato, no solo que no estén vacíos) y
+// avanza: al paso de cálculo directo (flujo calculadora) o al paso 1.5 de
+// tipo/modalidad (flujo de agendar consulta real).
 async function irAPaso2(){
   const nombre   = document.getElementById('m-nombre').value.trim();
   const apellido = document.getElementById('m-apellido').value.trim();
@@ -3361,8 +3446,11 @@ async function irAPaso2(){
   _showPaso(1.5);
 }
 
+// Vuelve al paso 1 del modal (datos personales).
 function irAPaso1(){ _showPaso(1); }
 
+// Pide al backend los horarios libres (action=getSlots) según la modalidad/tipo/
+// disponibilidad elegidos, y dibuja los botones de turno con lo que responda.
 function cargarSlots(){
   const loading=document.getElementById('slots-loading');
   const list   =document.getElementById('slots-list');
@@ -3430,6 +3518,7 @@ function cargarSlots(){
   document.head.appendChild(script);
 }
 
+// (Alternativa no-JSONP de dibujar los turnos; ver el render real dentro de cargarSlots.)
 function renderSlots(data){
   const loading=document.getElementById('slots-loading');
   const list   =document.getElementById('slots-list');
@@ -3447,6 +3536,7 @@ function renderSlots(data){
     </button>`).join('');
 }
 
+// Muestra un mensaje de error en el panel de horarios, con el botón de fallback a WhatsApp.
 function renderSlotsError(msg){
   document.getElementById('slots-loading').style.display='none';
   const errEl=document.getElementById('slots-err');
@@ -3454,6 +3544,8 @@ function renderSlotsError(msg){
   document.getElementById('slots-list').innerHTML=`<button class="slot-btn" onclick="coordinarPorWA()">💬 Coordinar por WhatsApp</button>`;
 }
 
+// Marca el turno elegido, adopta su modalidad si trae una propia (modo 'variado'),
+// dispara el evento 'eligio_horario' (Pixel) y muestra el resumen para confirmar.
 function elegirSlot(btn,slot){
   document.querySelectorAll('.slot-btn').forEach(b=>b.classList.remove('elegido'));
   btn.classList.add('elegido'); _slotElegido=slot;
@@ -3478,6 +3570,7 @@ function elegirSlot(btn,slot){
   }
 }
 
+// Confirma visualmente el turno elegido antes de pasar al llamado real de reserva.
 async function confirmarSlotElegido(){
   // Ocultar panel de confirmación y lista de slots
   const confWrap = document.getElementById('confirm-slot-wrap');
@@ -3492,6 +3585,9 @@ async function confirmarSlotElegido(){
   if(slotsList) slotsList.style.display = 'block';
 }
 
+// Crea el turno de verdad: llama a createEvent en el backend, guarda el registro en
+// el Sheet (una sola fila, con el link de recordatorio de WhatsApp) y muestra la
+// confirmación final. Si algo falla o tarda de más, cae al fallback de WhatsApp.
 async function confirmarAgenda(){
   if(!_slotElegido) return;
   const d    = datosPaciente.lead || {};
@@ -3557,6 +3653,7 @@ async function confirmarAgenda(){
   document.head.appendChild(script);
 }
 
+// Arma y abre un mensaje de WhatsApp para que el paciente pague la consulta agendada.
 function pagarPorWA(evento,lead){
   const tipoLabel={'evaluacion':'Evaluación inicial','seguimiento':'Seguimiento','reinicio':'Reinicio'}[_tipoConsulta]||'Consulta';
   const ubicLabel=_modalidad==='online'?'Online':(_modalidad==='punta_carretas'?'Punta Carretas':'Parque Batlle');
@@ -3571,6 +3668,7 @@ function pagarPorWA(evento,lead){
   registrar('wa_pagar_consulta', {turno:_slotElegido?.label||'', evento:evento.titulo||'', tipo:_tipoConsulta, modalidad:_modalidad});
 }
 
+// Fallback: abre WhatsApp para coordinar el turno a mano, cuando no hay horarios o algo falló.
 function coordinarPorWA(){
   const d=datosPaciente.lead||{};
   const tipoLabel={'evaluacion':'Evaluación inicial','seguimiento':'Seguimiento','reinicio':'Reinicio'}[_tipoConsulta]||'Consulta';
@@ -3586,6 +3684,7 @@ function coordinarPorWA(){
   cerrarModal();
 }
 
+// Atajo que reusa irAPaso2() para el botón de enviar el formulario.
 function enviarFormulario(){ irAPaso2(); }
 
 </script>
