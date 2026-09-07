@@ -1624,11 +1624,12 @@ function registrar(boton, extra){
   const script  = document.createElement('script');
   window[cbName] = function(res){
     if(res && res.filaNum) _filaNum = res.filaNum;
+    if(res && res.error) console.error('registrarEvento devolvió error:', res.error, '| boton:', boton);
     delete window[cbName];
     if(script.parentNode) script.parentNode.removeChild(script);
   };
   script.src = `${APPS_SCRIPT_URL}?${params.toString()}&callback=${cbName}`;
-  script.onerror = () => { delete window[cbName]; };
+  script.onerror = () => { console.error('registrarEvento: falló la carga del script (red/CORS) | boton:', boton); delete window[cbName]; };
   document.head.appendChild(script);
 }
 
@@ -3093,7 +3094,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-07-recordatorio-wa-v2-intl'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-07-validacion-campos-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
@@ -3125,10 +3126,6 @@ function setDisponibilidad(franja){
 }
 
 function validarFranjaModalidad(franja, modalidad){
-  // Punta Carretas cierra a las 18hs — no compatible con noche
-  if(modalidad === 'punta_carretas' && franja === 'noche'){
-    return '⚠️ Punta Carretas cierra a las 18hs. Para el horario nocturno elegí Parque Batlle (hasta las 20hs) u Online (hasta las 21hs).';
-  }
   // Punta Carretas no tiene turno al mediodía para Dra. Machado
   if(modalidad === 'punta_carretas' && franja === 'post_trabajo'){
     return '⚠️ Punta Carretas no tiene atención al mediodía. Probá con Parque Batlle u Online.';
@@ -3221,6 +3218,57 @@ function setHorario(btn,val){
   btn.setAttribute('aria-pressed','true');
 }
 
+// ── Validación de formato de los campos libres del formulario ──
+const RX_NOMBRE = /^[A-Za-zÀ-ÖØ-öø-ÿ' -]{2,60}$/;   // solo letras (con acentos), espacios, guiones y apóstrofes
+const RX_TEL    = /^\+?[0-9()\s-]{8,20}$/;            // dígitos y símbolos comunes de teléfono
+const RX_EMAIL  = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;  // email básico
+
+function telTieneSuficientesDigitos(tel){
+  return (String(tel||'').match(/\d/g) || []).length >= 8;
+}
+
+// Devuelve null si el campo es válido, o un mensaje de error si no lo es
+function validarCampo(id, val){
+  switch(id){
+    case 'm-nombre':
+    case 'm-apellido':
+      if(!val) return 'Este campo es obligatorio.';
+      if(!RX_NOMBRE.test(val)) return 'Solo letras, sin números ni símbolos.';
+      return null;
+    case 'm-tel':
+      if(!val) return 'Este campo es obligatorio.';
+      if(!RX_TEL.test(val) || !telTieneSuficientesDigitos(val)) return 'Ingresá un teléfono válido (ej: +598 9X XXX XXX).';
+      return null;
+    case 'm-email':
+      if(!val) return null; // opcional
+      if(!RX_EMAIL.test(val)) return 'Ingresá un email válido.';
+      return null;
+    case 'm-depto':
+      if(!val) return 'Seleccioná un departamento.';
+      return null;
+    case 'm-kg': {
+      if(!val) return 'Este campo es obligatorio.';
+      const n = Number(val);
+      if(isNaN(n) || n < 1 || n > 150) return 'Ingresá un número entre 1 y 150.';
+      return null;
+    }
+    default:
+      return null;
+  }
+}
+
+// Aplica validarCampo a una lista de {id,val}, pinta bordes y devuelve el primer mensaje de error (o null)
+function validarCamposYPintar(campos){
+  let primerError = null;
+  campos.forEach(({id, val})=>{
+    const err = validarCampo(id, val);
+    const el = document.getElementById(id);
+    if(el) el.style.borderColor = err ? 'var(--obes)' : '';
+    if(err && !primerError) primerError = err;
+  });
+  return primerError;
+}
+
 async function irAPaso2(){
   const nombre   = document.getElementById('m-nombre').value.trim();
   const apellido = document.getElementById('m-apellido').value.trim();
@@ -3230,9 +3278,18 @@ async function irAPaso2(){
   const errEl    = document.getElementById('modal-err');
 
   if(_modalOrigen==='calc'||_modalOrigen==='rapido'){
-    if(!nombre||!apellido||!tel||!depto||!kg_obj){ errEl.style.display='block'; return; }
+    const emailCalc = document.getElementById('m-email').value.trim();
+    const errorCalc = validarCamposYPintar([
+      {id:'m-nombre',   val:nombre},
+      {id:'m-apellido', val:apellido},
+      {id:'m-tel',      val:tel},
+      {id:'m-depto',    val:depto},
+      {id:'m-kg',       val:kg_obj},
+      {id:'m-email',    val:emailCalc},
+    ]);
+    if(errorCalc){ errEl.style.display='block'; errEl.textContent=errorCalc; return; }
     errEl.style.display='none';
-    const lead={nombre,apellido,tel,email:document.getElementById('m-email').value.trim(),depto,kgObjetivo:kg_obj,ts:Date.now()};
+    const lead={nombre,apellido,tel,email:emailCalc,depto,kgObjetivo:kg_obj,ts:Date.now()};
     try{ localStorage.setItem('pnk_lead',JSON.stringify(lead)); }catch(e){}
     datosPaciente.lead=lead;
     registrar('completo_datos');
@@ -3247,18 +3304,15 @@ async function irAPaso2(){
 
   // Flujo de agenda real — exige tipo y modalidad
   const esAgenda = !(_modalOrigen==='calc'||_modalOrigen==='rapido');
-  // Marcar campos faltantes en rojo
-  const campos = [
+  const emailAgenda = document.getElementById('m-email').value.trim();
+  let hayError = !!validarCamposYPintar([
     {id:'m-nombre',   val:nombre},
     {id:'m-apellido', val:apellido},
     {id:'m-tel',      val:tel},
     {id:'m-depto',    val:depto},
-  ];
-  let hayError = false;
-  campos.forEach(({id, val})=>{
-    const el = document.getElementById(id);
-    if(el){ el.style.borderColor = val ? '' : 'var(--obes)'; if(!val) hayError=true; }
-  });
+    {id:'m-email',    val:emailAgenda},
+  ]);
+  const primerErrorCampos = hayError ? validarCampo('m-nombre',nombre) || validarCampo('m-apellido',apellido) || validarCampo('m-tel',tel) || validarCampo('m-depto',depto) || validarCampo('m-email',emailAgenda) : null;
   if(esAgenda && !_tipoConsulta){
     document.querySelector('.btn-tipo')?.closest('div')?.style && (document.querySelectorAll('.btn-tipo')[0].closest('div').style.outline='2px solid var(--obes)');
     hayError=true;
@@ -3269,11 +3323,11 @@ async function irAPaso2(){
   } else { document.querySelectorAll('.btn-mod')[0]?.closest('div') && (document.querySelectorAll('.btn-mod')[0].closest('div').style.outline=''); }
   if(hayError){
     errEl.style.display='block';
-    errEl.textContent = esAgenda ? 'Completá los campos marcados y elegí tipo y modalidad.' : 'Completá los campos obligatorios.';
+    errEl.textContent = primerErrorCampos || (esAgenda ? 'Completá los campos marcados y elegí tipo y modalidad.' : 'Completá los campos obligatorios.');
     return;
   }
   errEl.style.display='none';
-  const lead={nombre,apellido,tel,email:document.getElementById('m-email').value.trim(),depto,kgObjetivo:kg_obj,ts:Date.now()};
+  const lead={nombre,apellido,tel,email:emailAgenda,depto,kgObjetivo:kg_obj,ts:Date.now()};
   try{ localStorage.setItem('pnk_lead',JSON.stringify(lead)); }catch(e){}
   datosPaciente.lead=lead;
   if(window.fbq) fbq('track','Lead',{currency:'UYU',value:0,content_name:'agenda_paso1'});
@@ -3433,7 +3487,7 @@ async function confirmarAgenda(){
     delete window[cbName];
     if(script.parentNode) script.parentNode.removeChild(script);
     coordinarPorWA();
-  }, 12000);
+  }, 20000);
 
   window[cbName] = function(data){
     clearTimeout(timeout);
@@ -3442,20 +3496,27 @@ async function confirmarAgenda(){
 
     if(data.error){ coordinarPorWA(); return; }
 
-    const tipoLabel = {'evaluacion':'Evaluación inicial','seguimiento':'Seguimiento','reinicio':'Reinicio'}[_tipoConsulta] || 'Consulta';
-    const medicoLabel = _slotElegido.medico === 'Villanoba' ? 'Dr. Villanoba' : 'Dra. Machado';
-    document.getElementById('modal-ok-msg').innerHTML =
-      `<strong>${_slotElegido.label}</strong><br>
-       Médico: ${medicoLabel} · ${tipoLabel}`;
-    document.getElementById('btn-pagar-wa').onclick = () => pagarPorWA(data, d);
+    // Guardar en Sheets/Calendar-log PRIMERO: si algo de la UI de abajo falla,
+    // el registro del turno no debe perderse (el evento de Calendar ya se creó server-side).
     registrar('agendar_hero', {
       modalidad: _modalidad, tipo: _tipoConsulta,
       sede, medico: data.medico || '',
       turno: _slotElegido?.label || '', eventId: data.eventId || data.titulo || '',
       linkRecordatorioWA: data.linkRecordatorioWA || ''
     });
-    if(window.fbq) fbq('track','Contact',{content_name:'agenda_confirmada'});
-    _showPaso(3);
+
+    try {
+      const tipoLabel = {'evaluacion':'Evaluación inicial','seguimiento':'Seguimiento','reinicio':'Reinicio'}[_tipoConsulta] || 'Consulta';
+      const medicoLabel = _slotElegido.medico === 'Villanoba' ? 'Dr. Villanoba' : 'Dra. Machado';
+      document.getElementById('modal-ok-msg').innerHTML =
+        `<strong>${_slotElegido.label}</strong><br>
+         Médico: ${medicoLabel} · ${tipoLabel}`;
+      document.getElementById('btn-pagar-wa').onclick = () => pagarPorWA(data, d);
+      if(window.fbq) fbq('track','Contact',{content_name:'agenda_confirmada'});
+      _showPaso(3);
+    } catch(e) {
+      console.error('Error mostrando la confirmación visual (el turno y el registro ya quedaron guardados):', e);
+    }
   };
 
   script.src = `${APPS_SCRIPT_URL}?${params.toString()}&callback=${cbName}`;
