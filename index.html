@@ -1482,6 +1482,10 @@ function renderCarousel(tab){
 }
 
 
+function faseLabelQuincena(tipo){
+  return tipo === 'interv' ? 'Cetogénica' : 'Reintroducción';
+}
+
 function mostrarSeguimiento(calc, kg){
   // Sección A — strip
   const strip = document.getElementById('seguimiento-strip');
@@ -1493,46 +1497,30 @@ function mostrarSeguimiento(calc, kg){
     lbl.textContent = `Primera compra → ~USD $${Math.round(calc.inversionInicial)} en productos y suplementos`;
   }
 
-  // Sección B: Solo 2 tarjetas
+  // Sección B: una tarjeta por CADA control médico real (cada 15 días),
+  // con el gasto específico de esa quincena según en qué fase del tratamiento cae.
   const gridEl = document.getElementById('cronograma-items');
   if(!gridEl) return;
 
-  // Tarjeta 1: Primera compra (Evaluación Médica) = inversionInicial
-  const primera = Math.round(calc.inversionInicial);
+  const quincenas = calc.quincenasDetalle || [];
+  if(quincenas.length === 0){ gridEl.innerHTML = ''; return; }
 
-  // Tarjeta 2: Compra recurrente = promedio de quincenas restantes
-  // Sumar costos de todas las quincenas excepto la primera
-  let totalRestante = 0;
-  let quincenasRestantes = 0;
-  calc.pasosDef.forEach(p => {
-    if(p.sobDia === 0 || !p.costoTotal) return;
-    const qs = p.quincenas || Math.max(1, Math.round(p.diasM / 15));
-    // Primera quincena del Paso 1 ya está en "primera compra"
-    if(p.paso === 1) {
-      totalRestante += p.costoTotal - (p.costoTotal / qs);
-      quincenasRestantes += qs - 1;
-    } else {
-      totalRestante += p.costoTotal;
-      quincenasRestantes += qs;
-    }
-  });
-  const recurrente = quincenasRestantes > 0
-    ? Math.round(totalRestante / quincenasRestantes)
-    : Math.round(primera * 0.7);
-
-  gridEl.innerHTML = `
-    <div style="background:var(--white);border:2px solid var(--gold);border-radius:10px;padding:12px 16px;text-align:center;min-width:140px;box-shadow:0 2px 8px rgba(176,141,62,.18);flex:1">
-      <div style="font-size:.72rem;font-weight:700;color:var(--gold);margin-bottom:3px">🩺 Evaluación Médica</div>
-      <div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">Día 1 · Primera compra</div>
-      <div style="font-size:1.1rem;font-weight:700;color:var(--ink)">USD $${primera.toLocaleString('es-UY')}</div>
-      <div style="font-size:.68rem;color:var(--muted);margin-top:3px">Incluye suplementos completos</div>
-    </div>
-    <div style="background:var(--white);border:1.5px solid var(--divider);border-radius:10px;padding:12px 16px;text-align:center;min-width:140px;flex:1">
-      <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:3px">📦 Control Médico</div>
-      <div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">Cada 15 días</div>
-      <div style="font-size:1.1rem;font-weight:700;color:var(--ink)">~USD $${recurrente.toLocaleString('es-UY')}</div>
-      <div style="font-size:.68rem;color:var(--muted);margin-top:3px">Promedio del tratamiento</div>
+  gridEl.innerHTML = quincenas.map((qd, i) => {
+    const esPrimera = i === 0;
+    const titulo    = esPrimera ? '🩺 Evaluación Médica' : '📦 Control Médico';
+    const subDias   = esPrimera ? 'Día 1 · Primera compra' : `Día ${qd.diaInicio}–${qd.diaFin}`;
+    const fase      = faseLabelQuincena(qd.tipo);
+    const borde     = esPrimera ? '2px solid var(--gold)' : '1.5px solid var(--divider)';
+    const sombra    = esPrimera ? 'box-shadow:0 2px 8px rgba(176,141,62,.18);' : '';
+    const colorTit  = esPrimera ? 'var(--gold)' : 'var(--muted)';
+    return `
+    <div style="background:var(--white);border:${borde};border-radius:10px;padding:12px 16px;text-align:center;min-width:140px;${sombra}flex:1">
+      <div style="font-size:.72rem;font-weight:700;color:${colorTit};margin-bottom:3px">${titulo}</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">${subDias}</div>
+      <div style="font-size:1.1rem;font-weight:700;color:var(--ink)">USD $${Math.round(esPrimera ? calc.inversionInicial : qd.costoTotal).toLocaleString('es-UY')}</div>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:3px">Fase ${fase}</div>
     </div>`;
+  }).join('');
 }
 
 /* ================================================================
@@ -1717,6 +1705,10 @@ function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
   // Sobrantes de suplementos
   let sobranteSuple = { unicomplex: 0, sodio: 0, dha: 0 };
 
+  // Detalle de cada quincena real (cada control médico + compra), en orden cronológico
+  const quincenasDetalle = [];
+  let diaAcumulado = 0;
+
   const pasosCalc = pasosDef.map(p => {
     const diasM  = Math.round(p.semM  * p.prop * 7);
     const diasMi = Math.round(p.semMi * p.prop * 7);
@@ -1742,6 +1734,7 @@ function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
         costoProductos += rPrep.costo;
 
         // Suplementos proporcionales a los días reales
+        let costoSuplementosQ = 0;
         Object.entries(SUPLES).forEach(([nombre, s]) => {
           if(s.pasos.includes(p.paso)){
             const necesarios = Math.ceil(s.dosis * diasEstaQuincena);
@@ -1750,8 +1743,21 @@ function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
             const cajas = Math.ceil(neto / s.u);
             const compradas = cajas * s.u;
             sobranteSuple[nombre] = compradas + sob - necesarios;
-            costoSuplementos += cajas * s.precio;
+            costoSuplementosQ += cajas * s.precio;
           }
+        });
+        costoSuplementos += costoSuplementosQ;
+
+        diaAcumulado += diasEstaQuincena;
+        quincenasDetalle.push({
+          paso: p.paso,
+          tipo: p.tipo,
+          diaInicio: diaAcumulado - diasEstaQuincena + 1,
+          diaFin: diaAcumulado,
+          diasEstaQuincena,
+          costoProductos: rPrep.costo,
+          costoSuplementos: costoSuplementosQ,
+          costoTotal: rPrep.costo + costoSuplementosQ,
         });
       }
     }
@@ -1769,6 +1775,22 @@ function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
       totalSobres: p.sobDia * diasM
     };
   });
+
+  // Fusionar colas de quincena muy cortas (pocos días sobrantes, a veces con costo $0
+  // porque ya lo cubre una caja sobrante anterior) con la quincena previa, para no
+  // mostrar un "control médico" casi vacío.
+  for(let i = quincenasDetalle.length - 1; i > 0; i--){
+    if(quincenasDetalle[i].diasEstaQuincena < 5){
+      const anterior = quincenasDetalle[i-1];
+      const actual   = quincenasDetalle[i];
+      anterior.diaFin            = actual.diaFin;
+      anterior.diasEstaQuincena += actual.diasEstaQuincena;
+      anterior.costoProductos   += actual.costoProductos;
+      anterior.costoSuplementos += actual.costoSuplementos;
+      anterior.costoTotal       += actual.costoTotal;
+      quincenasDetalle.splice(i, 1);
+    }
+  }
 
   // Inversión inicial = costo real de la primera quincena (Paso 1)
   const primerPaso = pasosCalc[0];
@@ -1826,7 +1848,7 @@ function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
   const inversionInicialReal = q1Alim15 + q1Suple15;
 
   return {
-    semMedia, pasosDef: pasosCalc, pasoSemInicio,
+    semMedia, pasosDef: pasosCalc, pasoSemInicio, quincenasDetalle,
     costoMedio: Math.round(totalCosto),
     totalMin: Math.round(totalCosto * 0.85),
     totalMax: Math.round(totalCosto * 1.15),
@@ -3094,7 +3116,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-07-validacion-campos-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-07-cronograma-quincenas-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
