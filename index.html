@@ -589,6 +589,8 @@ a { color: inherit; text-decoration: none; }
 /* ============================================================
    MODAL AGENDA
    ============================================================ */
+.barra-fija-scroll::-webkit-scrollbar { display: none; }
+
 .modal-bg {
   display: none; position: fixed; inset: 0;
   background: rgba(0,0,0,.45); z-index: 200;
@@ -1171,27 +1173,27 @@ a { color: inherit; text-decoration: none; }
 
 
 <!-- BARRA FIJA DE RESULTADOS (aparece al scrollear al resultado) -->
-<div id="barra-fija" style="display:none;position:fixed;top:0;left:0;right:0;z-index:90;background:var(--white);border-bottom:2px solid var(--divider);box-shadow:0 2px 12px rgba(0,0,0,.1);padding:8px 20px">
-  <div style="max-width:860px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+<div id="barra-fija" style="display:none;position:fixed;top:0;left:0;right:0;z-index:90;background:var(--white);border-bottom:2px solid var(--divider);box-shadow:0 2px 12px rgba(0,0,0,.1);padding:8px 14px">
+  <div style="max-width:860px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:nowrap">
+    <div class="barra-fija-scroll" style="display:flex;align-items:center;gap:14px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex:1;min-width:0;scrollbar-width:none">
       <!-- IMC con color -->
-      <div style="display:flex;align-items:center;gap:6px">
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">IMC</span>
-        <span id="barra-imc" style="font-size:1rem;font-weight:700;padding:3px 10px;border-radius:20px;background:#eee;color:#fff">–</span>
+        <span id="barra-imc" style="font-size:1rem;font-weight:700;padding:3px 10px;border-radius:20px;background:#eee;color:#fff;white-space:nowrap">–</span>
       </div>
       <!-- Kg a bajar -->
-      <div style="display:flex;align-items:center;gap:6px">
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Objetivo</span>
-        <span id="barra-kg" style="font-size:1rem;font-weight:700;color:var(--gold)">–</span>
+        <span id="barra-kg" style="font-size:1rem;font-weight:700;color:var(--gold);white-space:nowrap">–</span>
       </div>
       <!-- Tiempo estimado -->
-      <div style="display:flex;align-items:center;gap:6px">
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Tiempo est.</span>
-        <span id="barra-sem" style="font-size:1rem;font-weight:700;color:var(--ink)">–</span>
+        <span id="barra-sem" style="font-size:1rem;font-weight:700;color:var(--ink);white-space:nowrap">–</span>
       </div>
     </div>
-    <button onclick="abrirModal('barra')" style="background:var(--gold);color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">
-      Agendar consulta →
+    <button onclick="abrirModal('barra')" style="background:var(--gold);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font-body);white-space:nowrap;flex-shrink:0">
+      Agendar →
     </button>
   </div>
 </div>
@@ -2966,7 +2968,7 @@ function renderChart(peso, target, kg, pasoSemInicio){
 
   const maxDia = Math.ceil(Math.max(...series.map(s=>s.Tdia))/7)*7;
 
-  const W=760, H=340, mL=52, mR=22, mT=44, mB=40;
+  const W=760, H=340, mL=52, mR=22, mT=76, mB=40;
   const pad = Math.max(1, kg*.08);
   const yMin = target-pad, yMax = peso+pad;
   const X = d => mL + (d/maxDia)*(W-mL-mR);
@@ -2999,6 +3001,7 @@ function renderChart(peso, target, kg, pasoSemInicio){
   // Paso1: día 0 | Paso2: 40% del tiempo | Paso3: 75% | Paso4: 80% del total | Paso5: 90%
   const propTiempo = [0, 0.40, 0.75, 0.80, 0.90]; // inicio de cada paso como % del tiempo total
   const pasoNombres = ['Paso 1','Paso 2','Paso 3','Paso 4','Paso 5'];
+  let ultimaLabelDerecha = -Infinity, filaLabel = 0; // para detectar y evitar que las etiquetas se superpongan
 
   propTiempo.forEach((prop, idx) => {
     if(idx === 0) return; // Paso 1 arranca en día 0, no dibujamos línea
@@ -3006,18 +3009,29 @@ function renderChart(peso, target, kg, pasoSemInicio){
     if(dia <= 0 || dia >= maxDia) return;
     const x = X(dia);
 
-    // Línea vertical punteada suave
+    // Línea vertical punteada suave (siempre completa, de arriba del todo hasta el eje)
     s+=`<line x1="${x}" y1="${mT-24}" x2="${x}" y2="${H-mB}" stroke="#c9b87a" stroke-width="1" stroke-dasharray="4 5" opacity="0.6"/>`;
 
-    // Etiqueta arriba con fondo blanco — "Paso N · Día D"
-    const labelW = 72, labelH = 28;
+    // Etiqueta arriba con fondo blanco — "Paso N · Día D". Si quedaría pegada a la
+    // etiqueta anterior (dos pasos muy seguidos en el tiempo), la bajamos a una
+    // segunda fila en vez de dejar que se superpongan.
+    const labelW = 72, labelH = 28, gapMinimo = 6;
     const lx = Math.min(x - labelW/2, W - mR - labelW);
     const lxFinal = Math.max(lx, mL);
-    s+=`<rect x="${lxFinal}" y="${mT-40}" width="${labelW}" height="${labelH}" rx="4" fill="white" stroke="#e8dfc8" stroke-width="1"/>`;
-    s+=`<text x="${lxFinal + labelW/2}" y="${mT-27}" text-anchor="middle" font-size="9" font-weight="700" fill="#b08d3e">${pasoNombres[idx]}</text>`;
-    s+=`<text x="${lxFinal + labelW/2}" y="${mT-15}" text-anchor="middle" font-size="9" fill="#6b7480">Día ${dia}</text>`;
-    // Pequeña flecha hacia abajo
-    s+=`<line x1="${x}" y1="${mT-12}" x2="${x}" y2="${mT-1}" stroke="#c9b87a" stroke-width="1" opacity="0.7"/>`;
+
+    if(lxFinal < ultimaLabelDerecha + gapMinimo){
+      filaLabel = filaLabel === 0 ? 1 : 0;
+    } else {
+      filaLabel = 0;
+    }
+    ultimaLabelDerecha = lxFinal + labelW;
+    const yOffset = filaLabel * 34;
+
+    s+=`<rect x="${lxFinal}" y="${mT-40-yOffset}" width="${labelW}" height="${labelH}" rx="4" fill="white" stroke="#e8dfc8" stroke-width="1"/>`;
+    s+=`<text x="${lxFinal + labelW/2}" y="${mT-27-yOffset}" text-anchor="middle" font-size="9" font-weight="700" fill="#b08d3e">${pasoNombres[idx]}</text>`;
+    s+=`<text x="${lxFinal + labelW/2}" y="${mT-15-yOffset}" text-anchor="middle" font-size="9" fill="#6b7480">Día ${dia}</text>`;
+    // Línea que conecta la etiqueta con su marca en el eje (más larga si está en la 2da fila)
+    s+=`<line x1="${x}" y1="${mT-12-yOffset}" x2="${x}" y2="${mT-1}" stroke="#c9b87a" stroke-width="1" opacity="0.7"/>`;
   });
 
   // ── Línea verde del peso ideal ──
@@ -3068,7 +3082,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-08-cuotas-mobile-fix-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-08-barra-fija-mobile-fix-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
