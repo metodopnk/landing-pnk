@@ -3066,7 +3066,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-08-calculo-backend-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-08-config-manual-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
@@ -3351,6 +3351,15 @@ function cargarSlots(){
     loading.style.display='none';
     delete window[cbName];
     if(script.parentNode) script.parentNode.removeChild(script);
+    // Ningún médico habilitado para esta modalidad (deshabilitado a mano en la
+    // configuración) — ni se buscó en el calendario. Vamos directo a coordinar
+    // por WhatsApp con la disponibilidad que ya eligió el cliente.
+    if(data.sinMedicosHabilitados){
+      errEl.style.display='block';
+      errEl.textContent='Por este momento no tenemos turnos online por acá. Coordinemos por WhatsApp con tu disponibilidad.';
+      list.innerHTML=`<button class="slot-btn" onclick="coordinarPorWA()">💬 Coordinar por WhatsApp</button>`;
+      return;
+    }
     if(data.error||!data.slots||!data.slots.length){
       errEl.style.display='block'; errEl.textContent='Sin horarios disponibles. Coordiná por WhatsApp.';
       list.innerHTML=`<button class="slot-btn" onclick="coordinarPorWA()">💬 Coordinar por WhatsApp</button>`;
@@ -3546,18 +3555,37 @@ function pagarPorWA(evento,lead){
 }
 
 // Fallback: abre WhatsApp para coordinar el turno a mano, cuando no hay horarios o algo falló.
+// Traduce la disponibilidad que ya eligió el cliente (franja simple o grilla de
+// día+horario) a un texto legible, para incluir en el mensaje de WhatsApp — así
+// quien coordina a mano ya sabe qué días/horarios le vienen bien sin preguntar de nuevo.
+function nomenclaturaDisponibilidad(){
+  if(_disponibilidad === 'grilla' && _disponibilidadGrilla && _disponibilidadGrilla.length){
+    const nombres = _disponibilidadGrilla.map(o => o.nombre).filter(Boolean);
+    const unicos = [...new Set(nombres)];
+    return unicos.slice(0, 6).join(', ') + (unicos.length > 6 ? '…' : '');
+  }
+  const labels = {
+    flexible: 'Cualquier horario', manana: 'Mañana (9 a 12hs)', tarde: 'Tarde (12 a 18hs)',
+    noche: 'Noche (18 a 21hs)', post_trabajo: 'Después de las 12hs', variado: 'Varios horarios'
+  };
+  return labels[_disponibilidad] || '';
+}
+
 function coordinarPorWA(){
   const d=datosPaciente.lead||{};
   const tipoLabel={'evaluacion':'Evaluación inicial','seguimiento':'Seguimiento','reinicio':'Reinicio'}[_tipoConsulta]||'Consulta';
   const ubicLabel=_modalidad==='online'?'Online':(_modalidad==='punta_carretas'?'Punta Carretas':'Parque Batlle');
+  const disp = nomenclaturaDisponibilidad();
+  const dispLinea = disp ? `🗓️ Disponibilidad: ${disp}\n` : '';
   const msg=encodeURIComponent(
     `Hola, quiero agendar una consulta PnK® 🩺\n\n`+
     `👤 ${d.nombre||''} ${d.apellido||''}\n📱 ${d.tel||''}\n`+
-    `🩺 ${tipoLabel} · ${ubicLabel}\n📍 Modalidad: ${_modalidad||'a coordinar'}\n\n`+
-    `¿Podés darme 3 opciones de horario disponible?`
+    `🩺 ${tipoLabel} · ${ubicLabel}\n📍 Modalidad: ${_modalidad||'a coordinar'}\n`+
+    dispLinea+
+    `\n¿Podés confirmarme un horario?`
   );
   window.open(`https://wa.me/${CONFIG.waNum}?text=${msg}`,'_blank');
-  registrar('wa_coordinar_horario', {tipo:_tipoConsulta, modalidad:_modalidad});
+  registrar('wa_coordinar_horario', {tipo:_tipoConsulta, modalidad:_modalidad, disponibilidad: disp});
   cerrarModal();
 }
 
