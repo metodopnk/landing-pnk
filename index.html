@@ -1643,32 +1643,10 @@ const CONFIG = {
   waNum: '59893365668'  // ← reemplazá con tu número
 };
 
-// ── Precios por caja ──────────────────────────────────────
-const CAJA_PREP     = { u: 7, precio: 40 }; // Para preparar (único tipo)
-const PRECIO_PREPARAR = CAJA_PREP.precio / CAJA_PREP.u;
-const PRECIO_PRONTO   = 45/5; // Solo para referencia, no se usa en cálculo
-const MAX_PRONTOS_DIA = 0;    // Sin listos para consumir en el cálculo base
-
-// ── Suplementos ───────────────────────────────────────────
-const SUPLES = {
-  unicomplex: { precio: 50,  u: 30, dosis: 2, pasos: [1,2,3] }, // 2/día → 30u = 15 días (1 quincena)
-  sodio:      { precio: 22,  u: 90, dosis: 3, pasos: [1,2,3] }, // 3/día → 90u = 30 días (2 quincenas)
-  dha:        { precio: 83,  u: 60, dosis: 2, pasos: [1,2,3,4,5] }, // 2/día → 60u = 30 días (2 quincenas)
-};
-
-// ── Cajas necesarias con sobrantes ───────────────────────
-// sobrante: sobres que sobran de la compra anterior para este período
-function cajasNecesarias(sobresNecesarios, tamCaja, sobrante) {
-  const neto = Math.max(0, sobresNecesarios - sobrante);
-  const cajas = Math.ceil(neto / tamCaja);
-  const comprados = cajas * tamCaja;
-  const nuevoSobrante = comprados + sobrante - sobresNecesarios;
-  return { cajas, costo: cajas * CAJA_PREP.precio, nuevoSobrante };
-}
-
-// Proporciones de tiempo por paso dentro de cada momento
-const PROP_CETO  = [0.40, 0.35, 0.25]; // Pasos 1-3
-const PROP_REINT = [0.55, 0.45];        // Pasos 4-5
+// NOTA: los precios de cajas, suplementos y proporciones del tratamiento se
+// movieron al backend (Apps Script) a propósito, para no dejarlos a la vista en
+// el código fuente de la página. Ver calcularDesdeKg() más abajo — ahora le pide
+// el resultado ya calculado al servidor en vez de calcularlo acá.
 
 let sexo    = 'mujer';
 let horario = '';
@@ -1682,196 +1660,45 @@ function setSexo(s){
 }
 
 /* ================================================================
-   NÚCLEO DE CÁLCULO — con lógica de cajas cerradas y sobrantes
+   NÚCLEO DE CÁLCULO — ahora vive en el backend (Apps Script, action=calcularPlan).
+   Acá solo queda el "mensajero": le manda kg/imc/peso al servidor y espera la
+   respuesta ya calculada, sin conocer la fórmula real (precios de cajas,
+   suplementos, proporciones de cada etapa — ver pnk-calendar.gs).
+   Devuelve una Promise (antes era un cálculo instantáneo) — todo lugar que la
+   llama tuvo que pasar a ser 'async function' y usar 'await'.
    ================================================================ */
 function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
-  const semMedia = Math.max(1, Math.round(kg / CONFIG.ritmos.medio.kgSem));
-
-  const kgCeto  = kg * 0.80;
-  const kgReint = kg * 0.20;
-
-  const semCetoMedia  = kgCeto  / 2.0;
-  const semCetoMin    = kgCeto  / 2.5;
-  const semCetoMax    = kgCeto  / 1.5;
-  const semReintMedia = kgReint / 1.0;
-  const semReintMin   = kgReint / 1.25;
-  const semReintMax   = kgReint / 0.75;
-
-  const pasosDef = [
-    { paso:1, sobDia:4, prop:PROP_CETO[0],  semM:semCetoMedia,  semMi:semCetoMin,  semMx:semCetoMax,  dieta:'Dieta cetogénica · verduras libres y limitadas', tipo:'interv' },
-    { paso:2, sobDia:3, prop:PROP_CETO[1],  semM:semCetoMedia,  semMi:semCetoMin,  semMx:semCetoMax,  dieta:'Cetogénica · se incorporan proteínas',           tipo:'interv' },
-    { paso:3, sobDia:2, prop:PROP_CETO[2],  semM:semCetoMedia,  semMi:semCetoMin,  semMx:semCetoMax,  dieta:'Cetogénica · se incorporan sabores',             tipo:'interv' },
-    { paso:4, sobDia:1, prop:PROP_REINT[0], semM:semReintMedia, semMi:semReintMin, semMx:semReintMax, dieta:'Reintroducción · pan y frutas',                  tipo:'clave'  },
-    { paso:5, sobDia:0, prop:PROP_REINT[1], semM:semReintMedia, semMi:semReintMin, semMx:semReintMax, dieta:'Plan nutricional · sin sobres',                  tipo:'clave'  },
-  ];
-
-  let totalCosto = 0;
-  const pasoSemInicio = [0];
-  let semAcum = 0;
-
-  // Sobrantes acumulados entre quincenas
-  let sobrantePrep   = 0;
-
-  // Sobrantes de suplementos
-  let sobranteSuple = { unicomplex: 0, sodio: 0, dha: 0 };
-
-  // 1) Calcular días y kg por paso (sin costos todavía — los costos se calculan
-  //    después, en ciclos de compra de 15 días CONTINUOS para todo el tratamiento,
-  //    para que la compra real coincida siempre con "cada 15 días desde el día 1"
-  //    y no se reinicie artificialmente en cada cambio de fase.
-  const pasosCalc = pasosDef.map(p => {
-    const diasM  = Math.round(p.semM  * p.prop * 7);
-    const diasMi = Math.round(p.semMi * p.prop * 7);
-    const diasMx = Math.round(p.semMx * p.prop * 7);
-    const semM   = Math.round(diasM  / 7);
-    const semMi  = Math.round(diasMi / 7);
-    const semMx  = Math.round(diasMx / 7);
-
-    semAcum += semM;
-    if(p.paso < 5) pasoSemInicio.push(semAcum);
-
-    return { ...p, diasM, semM, semMi, semMx, totalSobres: p.sobDia * diasM };
-  });
-
-  // 2) Línea de tiempo continua de días con compra (excluye Paso 5, que no lleva alimentación PnK)
-  const segmentosDias = pasosCalc.filter(p => p.sobDia > 0).map(p => ({ paso: p.paso, tipo: p.tipo, sobDia: p.sobDia, dias: p.diasM }));
-  const totalDiasConCompra = segmentosDias.reduce((a, s) => a + s.dias, 0);
-
-  // 3) Trocear esa línea de tiempo en ciclos de 15 días corridos (el último puede ser más corto).
-  //    Un ciclo puede abarcar más de un paso si la transición de fase cae en medio del ciclo.
-  const quincenasDetalle = [];
-  let segIdx = 0, diaDentroSegmento = 0, diaActual = 0;
-
-  while (diaActual < totalDiasConCompra && segIdx < segmentosDias.length) {
-    const diasEnEsteBloque = Math.min(15, totalDiasConCompra - diaActual);
-    let restante = diasEnEsteBloque;
-    let sobresNecBloque = 0;
-    let costoSuplementosBloque = 0;
-    const diasPorPaso = {}; // para elegir el paso predominante del bloque (por si hay transición en el medio)
-
-    while (restante > 0 && segIdx < segmentosDias.length) {
-      const seg = segmentosDias[segIdx];
-      const diasDisponibles = seg.dias - diaDentroSegmento;
-      const diasAUsar = Math.min(restante, diasDisponibles);
-
-      sobresNecBloque += seg.sobDia * diasAUsar;
-      diasPorPaso[seg.paso] = (diasPorPaso[seg.paso] || 0) + diasAUsar;
-
-      // Suplementos de este tramo del bloque (según el paso al que pertenece)
-      Object.entries(SUPLES).forEach(([nombre, s]) => {
-        if(s.pasos.includes(seg.paso)){
-          const necesarios = Math.ceil(s.dosis * diasAUsar);
-          const sob = sobranteSuple[nombre] || 0;
-          const neto = Math.max(0, necesarios - sob);
-          const cajas = Math.ceil(neto / s.u);
-          const compradas = cajas * s.u;
-          sobranteSuple[nombre] = compradas + sob - necesarios;
-          costoSuplementosBloque += cajas * s.precio;
-        }
-      });
-
-      diaDentroSegmento += diasAUsar;
-      restante -= diasAUsar;
-
-      if(diaDentroSegmento >= seg.dias){ segIdx++; diaDentroSegmento = 0; }
-    }
-
-    // Paso predominante del bloque = el que aportó más días (no simplemente el último tocado)
-    const pasoRepresentativo = Object.entries(diasPorPaso).sort((a,b)=>b[1]-a[1])[0][0] * 1;
-    const tipoRepresentativo = segmentosDias.find(s => s.paso === pasoRepresentativo)?.tipo;
-
-    const rPrep = cajasNecesarias(sobresNecBloque, CAJA_PREP.u, sobrantePrep);
-    sobrantePrep = rPrep.nuevoSobrante;
-
-    const diaInicio = diaActual + 1;
-    diaActual += diasEnEsteBloque;
-
-    quincenasDetalle.push({
-      paso: pasoRepresentativo,
-      tipo: tipoRepresentativo,
-      diaInicio, diaFin: diaActual,
-      diasEstaQuincena: diasEnEsteBloque,
-      costoProductos: rPrep.costo,
-      costoSuplementos: costoSuplementosBloque,
-      costoTotal: rPrep.costo + costoSuplementosBloque,
+  return new Promise((resolve, reject) => {
+    const cbName = 'pnkCalc_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+    const params = new URLSearchParams({
+      action: 'calcularPlan',
+      kg: kg || 0, imc: imc || 0,
+      pesoActual: pesoActual || 0, pesoIdeal: pesoIdeal || 0,
+      callback: cbName
     });
-  }
+    const script = document.createElement('script');
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      if(script.parentNode) script.parentNode.removeChild(script);
+      reject(new Error('Tiempo agotado calculando el plan'));
+    }, 15000);
 
-  // Si el tratamiento no cierra justo en un múltiplo de 15, puede quedar un remanente
-  // final muy corto (pocos días) — lo fusionamos con la quincena anterior en vez de
-  // mostrar una tarjeta casi vacía.
-  if(quincenasDetalle.length > 1){
-    const ultima = quincenasDetalle[quincenasDetalle.length - 1];
-    if(ultima.diasEstaQuincena < 5){
-      const anterior = quincenasDetalle[quincenasDetalle.length - 2];
-      anterior.diaFin            = ultima.diaFin;
-      anterior.diasEstaQuincena += ultima.diasEstaQuincena;
-      anterior.costoProductos   += ultima.costoProductos;
-      anterior.costoSuplementos += ultima.costoSuplementos;
-      anterior.costoTotal       += ultima.costoTotal;
-      quincenasDetalle.pop();
-    }
-  }
-
-  totalCosto = quincenasDetalle.reduce((a, q) => a + q.costoTotal, 0);
-
-  // Desglose de la primera quincena para mostrar en el panel
-  const primerPaso = pasosCalc[0];
-  const q1AlimSobresComprados = Math.ceil((primerPaso?.sobDia||4) * 15 / CAJA_PREP.u) * CAJA_PREP.u;
-  const q1AlimSobresUsados    = (primerPaso?.sobDia||4) * 15;
-  const q1AlimSobrantes       = q1AlimSobresComprados - q1AlimSobresUsados;
-  const q1AlimCosto           = Math.ceil((primerPaso?.sobDia||4) * 15 / CAJA_PREP.u) * CAJA_PREP.precio;
-  const q1AlimSobranteValor   = Math.round(q1AlimSobrantes * PRECIO_PREPARAR);
-
-  // Suplementos primera quincena y sus sobrantes
-  const q1Suple = {};
-  let q1SupleCosto = 0;
-  let q1SupleSobranteValor = 0;
-  const suplesDetalle = [];
-  Object.entries(SUPLES).forEach(([nombre, s]) => {
-    if(s.pasos.includes(1)){
-      const necesarios = s.dosis * 15;
-      const cajas = Math.ceil(necesarios / s.u);
-      const comprados = cajas * s.u;
-      const sobrantes = comprados - necesarios;
-      const costo = cajas * s.precio;
-      const sobranteValor = Math.round(sobrantes / s.u * s.precio);
-      q1SupleCosto += costo;
-      q1SupleSobranteValor += sobranteValor;
-      suplesDetalle.push({ nombre, cajas, comprados, sobrantes, costo, sobranteValor });
-    }
+    window[cbName] = function(data){
+      clearTimeout(timeout);
+      delete window[cbName];
+      if(script.parentNode) script.parentNode.removeChild(script);
+      if(data && data.error){ reject(new Error(data.error)); return; }
+      resolve(data);
+    };
+    script.onerror = () => {
+      clearTimeout(timeout);
+      delete window[cbName];
+      console.error('calcularDesdeKg: falló la carga del script (red/CORS)');
+      reject(new Error('No se pudo conectar con el servidor de cálculo'));
+    };
+    script.src = `${APPS_SCRIPT_URL}?${params.toString()}`;
+    document.head.appendChild(script);
   });
-
-  const desglose = {
-    alimCosto: q1AlimCosto,
-    alimSobresComprados: q1AlimSobresComprados,
-    alimSobresUsados: q1AlimSobresUsados,
-    alimSobrantes: q1AlimSobrantes,
-    alimSobranteValor: q1AlimSobranteValor,
-    supleCosto: q1SupleCosto,
-    supleSobranteValor: q1SupleSobranteValor,
-    suplesDetalle,
-    total: q1AlimCosto + q1SupleCosto,
-    sobranteTotal: q1AlimSobranteValor + q1SupleSobranteValor,
-  };
-  // inversionInicial = primera quincena completa (15 días) siempre
-  const q1Alim15 = Math.ceil(4 * 15 / CAJA_PREP.u) * CAJA_PREP.precio; // 4 sobres × 15 días
-  let q1Suple15 = 0;
-  Object.entries(SUPLES).forEach(([n,s]) => {
-    if(s.pasos.includes(1)){
-      const cajas = Math.ceil((s.dosis * 15) / s.u);
-      q1Suple15 += cajas * s.precio;
-    }
-  });
-  const inversionInicialReal = q1Alim15 + q1Suple15;
-
-  return {
-    semMedia, pasosDef: pasosCalc, pasoSemInicio, quincenasDetalle,
-    costoMedio: Math.round(totalCosto),
-    totalMin: Math.round(totalCosto * 0.85),
-    totalMax: Math.round(totalCosto * 1.15),
-    kgCeto, kgReint, inversionInicial: inversionInicialReal, desglose
-  };
 }
 
 /* ================================================================
@@ -2020,7 +1847,7 @@ function ocultarPanelAgenda(){
 // Ejecuta el cálculo completo de peso ideal a partir de los datos del formulario
 // principal (sexo, edad, altura, peso), muestra los resultados y registra el evento
 // 'calcular' (Sheet + Pixel Lead).
-function calcular(){
+async function calcular(){
   if(!leadConfirmado()){abrirVentanaLead('completo');return;}
   const edad   = parseFloat(document.getElementById('c-edad').value);
   const altura = parseFloat(document.getElementById('c-altura').value);
@@ -2033,7 +1860,20 @@ function calcular(){
   const imc   = peso/h2;
   const ideal = CONFIG.imcObj[sexo]*h2;
   const kg    = Math.max(0, peso-ideal);
-  const calc  = kg>0 ? calcularDesdeKg(kg, imc, peso, ideal) : null;
+  const btnCalc = document.querySelector('.btn-calc');
+  const btnTxtOriginal = btnCalc ? btnCalc.textContent : '';
+  if(btnCalc){ btnCalc.disabled = true; btnCalc.textContent = 'Calculando...'; }
+  let calc = null;
+  try {
+    calc = kg>0 ? await calcularDesdeKg(kg, imc, peso, ideal) : null;
+  } catch(e) {
+    console.error('calcular: error pidiendo el plan al backend', e);
+    if(btnCalc){ btnCalc.disabled = false; btnCalc.textContent = btnTxtOriginal; }
+    errEl.textContent = 'No pudimos calcular tu plan. Probá de nuevo en unos segundos.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if(btnCalc){ btnCalc.disabled = false; btnCalc.textContent = btnTxtOriginal; }
   const kgPercForm = parseFloat(datosPaciente.lead?.kgObjetivo) || null;
   datosPaciente = { ...datosPaciente, sexo, edad, altura, peso: peso.toFixed(1), imc: imc.toFixed(2), kg: kg.toFixed(1), kgPercepcion: kgPercForm, sem: calc?.semMedia||0, costoMedio: calc?.costoMedio||0, inversionInicial: calc?.inversionInicial||0, desglose: calc?.desglose||null };
   const idx = imc<18.5?0:imc<25?1:imc<30?2:3;
@@ -2078,11 +1918,17 @@ function calcular(){
 /* ================================================================
    BOTONES RÁPIDOS
    ================================================================ */
-function calcularRapido(kg){
+async function calcularRapido(kg){
   document.querySelectorAll('.btn-kg').forEach(b=>b.classList.toggle('active',+b.dataset.kg===kg));
   if(!leadConfirmado()){abrirVentanaLead('rapido',kg);return;}
   const imc   = 27;
-  const calc  = calcularDesdeKg(kg, imc, null, null);
+  let calc;
+  try {
+    calc = await calcularDesdeKg(kg, imc, null, null);
+  } catch(e) {
+    console.error('calcularRapido: error pidiendo el plan al backend', e);
+    return;
+  }
   datosPaciente = { ...datosPaciente, sexo, kg: kg.toFixed(0), sem: calc.semMedia, costoMedio: calc.costoMedio, inversionInicial: calc.inversionInicial||343, desglose: calc.desglose||null, rapido: true };
   document.getElementById('r-kg').textContent  = kg+' kg';
   document.getElementById('r-imc').textContent = '–';
@@ -2113,7 +1959,7 @@ function calcularRapido(kg){
    ================================================================ */
 function iconosSobres(n){
   let h = '<div class="sobre-icons">';
-  for(let i=0;i<n;i++) h+=`<div class="sobre-ic${i<MAX_PRONTOS_DIA?' pronto':''}"></div>`;
+  for(let i=0;i<n;i++) h+='<div class="sobre-ic"></div>'; // hoy nunca se marca como "pronto" (siempre para preparar)
   return h+'</div>';
 }
 
@@ -2193,7 +2039,7 @@ function renderPasos(calc){
   const diasReint = Math.round((calc.kgReint / 1.0) * 7); // 1 kg/sem en reintroducción
   const diasTotal = diasCeto + diasReint;
   calcularSuplementos(diasCeto, diasTotal);
-  const invInicial = calc.inversionInicial || datosPaciente.inversionInicial || Math.round(4 * 15 * PRECIO_PREPARAR);
+  const invInicial = calc.inversionInicial || datosPaciente.inversionInicial || 343; // fallback si aún no llegó la respuesta del backend
   renderCuotas(costoMedio, invInicial);
 }
 
@@ -2256,19 +2102,35 @@ function actualizarCostoRango(){
 
 /* ---- Avisa de descuentos ---- */
 
-/* ---- Precios de consulta médica ---- */
-const PRECIOS_CONSULTA = {
-  evaluacion: { online: 960,  presencial: 1440 },
-  seguimiento: { online: 1200, presencial: 1800 },
-  reinicio:    { online: 1200, presencial: 1800 },
-};
+/* ---- Precios de consulta médica ----
+   La tabla de precios ya no vive acá — se pide al backend (action=precioConsulta)
+   y se guarda en caché la primera vez que se necesita cada combinación tipo+modalidad,
+   para no golpear el servidor en cada click ni tener los precios a la vista en el código. */
+const _cachePreciosConsulta = {};
 
-// Devuelve el precio de la consulta según el tipo (evaluación/seguimiento/reinicio)
-// y la modalidad (online/presencial) actualmente elegidos, usando la tabla PRECIOS_CONSULTA.
-function getPrecioConsulta(){
-  const tipo = _tipoConsulta || 'evaluacion';
-  const mod  = _modalidad === 'online' ? 'online' : 'presencial';
-  return PRECIOS_CONSULTA[tipo]?.[mod] || 0;
+// Pide al backend el precio de una consulta puntual (tipo+modalidad) y lo cachea.
+function pedirPrecioConsulta(tipo, modalidad){
+  const mod = modalidad === 'online' ? 'online' : 'presencial';
+  const key = tipo + '|' + mod;
+  if(_cachePreciosConsulta[key] !== undefined) return Promise.resolve(_cachePreciosConsulta[key]);
+
+  return new Promise((resolve) => {
+    const cbName = 'pnkPrecio_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+    const params = new URLSearchParams({ action:'precioConsulta', tipo, modalidad: mod, callback: cbName });
+    const script = document.createElement('script');
+    const timeout = setTimeout(() => { delete window[cbName]; if(script.parentNode) script.parentNode.removeChild(script); resolve(0); }, 10000);
+    window[cbName] = function(data){
+      clearTimeout(timeout);
+      delete window[cbName];
+      if(script.parentNode) script.parentNode.removeChild(script);
+      const precio = (data && data.precio) || 0;
+      _cachePreciosConsulta[key] = precio;
+      resolve(precio);
+    };
+    script.onerror = () => { clearTimeout(timeout); delete window[cbName]; resolve(0); };
+    script.src = `${APPS_SCRIPT_URL}?${params.toString()}`;
+    document.head.appendChild(script);
+  });
 }
 
 // Da formato de precio en pesos uruguayos a un número (ej. 1500 → '$1.500').
@@ -2834,12 +2696,21 @@ function onKgSelectorChange(val){
   }
 }
 
-// Vuelve a correr todo el cálculo (pasos, cronograma, suplementos) para un kg objetivo distinto al inicial.
+// Vuelve a correr todo el cálculo (pasos, cronograma, suplementos) para un kg objetivo
+// distinto al inicial. El selector dispara esto en vivo mientras se arrastra, así que
+// se espera un poquito (debounce) antes de pedirle el resultado al backend, para no
+// mandarle un pedido por cada pixel que se mueve el slider.
+let _debounceRecalc = null;
 function recalcularConKg(kg){
   if(!kg || kg <= 0) return;
+  if(_debounceRecalc) clearTimeout(_debounceRecalc);
+  _debounceRecalc = setTimeout(() => _recalcularConKgAhora(kg), 350);
+}
+
+async function _recalcularConKgAhora(kg){
   try {
     const imc = parseFloat(datosPaciente.imc) || 27;
-    const calc = calcularDesdeKg(kg, imc, null, null);
+    const calc = await calcularDesdeKg(kg, imc, null, null);
     if(!calc) return;
 
     // Guardar estado PRIMERO para que renderPasos→recalcularTotal use valores correctos
@@ -2991,7 +2862,7 @@ function setDescuento(pct){
 /* ---- Cuotas — Contado/Entrega inicial + Financiado dinámico ---- */
 function renderCuotas(total){
   // Entrega sugerida = gasto primeros 15 días Paso 1 (4 sobres/día × 15 días, todo para preparar)
-  const entregaSugerida = datosPaciente.inversionInicial ? Math.round(datosPaciente.inversionInicial) : Math.round(4 * 15 * PRECIO_PREPARAR);
+  const entregaSugerida = datosPaciente.inversionInicial ? Math.round(datosPaciente.inversionInicial) : 343; // fallback si aún no llegó la respuesta del backend
   const cuotasOpc = [3, 6, 9, 12];
   const maxCuotas = 12;
   const saldoInicial = Math.max(0, total - entregaSugerida);
@@ -3195,7 +3066,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-07-codigo-comentado-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-08-calculo-backend-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
@@ -3241,6 +3112,7 @@ function setTipo(btn){
   _tipoConsulta = btn.dataset.tipo;
   document.querySelectorAll('.btn-tipo[data-tipo]').forEach(b=>b.classList.remove('activo'));
   btn.classList.add('activo');
+  if(_modalidad) pedirPrecioConsulta(_tipoConsulta, _modalidad); // precargar en caché
 }
 
 // Guarda la modalidad elegida (online/Punta Carretas/Parque Batlle) y marca el botón activo.
@@ -3248,6 +3120,7 @@ function setModalidad(btn){
   _modalidad = btn.dataset.mod;
   document.querySelectorAll('.btn-tipo[data-mod]').forEach(b=>b.classList.remove('activo'));
   btn.classList.add('activo');
+  if(_tipoConsulta) pedirPrecioConsulta(_tipoConsulta, _modalidad); // precargar en caché
 }
 
 function abrirModal(origen){
@@ -3546,7 +3419,7 @@ function renderSlotsError(msg){
 
 // Marca el turno elegido, adopta su modalidad si trae una propia (modo 'variado'),
 // dispara el evento 'eligio_horario' (Pixel) y muestra el resumen para confirmar.
-function elegirSlot(btn,slot){
+async function elegirSlot(btn,slot){
   document.querySelectorAll('.slot-btn').forEach(b=>b.classList.remove('elegido'));
   btn.classList.add('elegido'); _slotElegido=slot;
   // Si el turno trae su propia modalidad (modo 'variado', p.ej. la alternativa presencial↔online),
@@ -3559,7 +3432,7 @@ function elegirSlot(btn,slot){
   if(confWrap){
     const tipoLabel = {'evaluacion':'Evaluación inicial','seguimiento':'Seguimiento','reinicio':'Reinicio'}[_tipoConsulta]||'Consulta';
     const ubicLabel = _modalidad==='online'?'Online':(_modalidad==='punta_carretas'?'Punta Carretas':'Parque Batlle');
-    const precio = getPrecioConsulta();
+    const precio = await pedirPrecioConsulta(_tipoConsulta || 'evaluacion', _modalidad);
     document.getElementById('confirm-slot-resumen').textContent =
       `📅 ${slot.label} · ${tipoLabel} · ${ubicLabel}`;
     const precioEl = document.getElementById('confirm-precio');
@@ -3592,6 +3465,10 @@ async function confirmarAgenda(){
   if(!_slotElegido) return;
   const d    = datosPaciente.lead || {};
   const sede = _modalidad === 'online' ? 'online' : _modalidad;
+  // Asegurar el precio con await (no confiar solo en la caché) — este valor se
+  // guarda de verdad en la reserva y en el mensaje de recordatorio de WhatsApp,
+  // así que no puede quedar en $0 por una carga en caché que todavía no llegó.
+  const precioConsulta = await pedirPrecioConsulta(_tipoConsulta || 'evaluacion', _modalidad);
 
   const params = new URLSearchParams({
     action:    'createEvent',
@@ -3604,7 +3481,7 @@ async function confirmarAgenda(){
     modalidad: _modalidad === 'online' ? 'online' : 'presencial',
     sede,
     tipo:      _tipoConsulta || 'evaluacion',
-    precio:    getPrecioConsulta() || ''
+    precio:    precioConsulta || ''
   });
 
   const cbName = 'pnkEvt_' + Date.now();
@@ -3631,7 +3508,7 @@ async function confirmarAgenda(){
       sede, medico: data.medico || '',
       turno: _slotElegido?.label || '', eventId: data.eventId || data.titulo || '',
       linkRecordatorioWA: data.linkRecordatorioWA || '',
-      precio: getPrecioConsulta() || ''
+      precio: precioConsulta || ''
     });
 
     try {
