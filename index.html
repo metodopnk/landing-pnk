@@ -592,8 +592,10 @@ a { color: inherit; text-decoration: none; }
 .modal-bg {
   display: none; position: fixed; inset: 0;
   background: rgba(0,0,0,.45); z-index: 200;
-  align-items: center; justify-content: center;
+  align-items: flex-start; justify-content: center;
   padding: 20px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .modal-bg.open { display: flex; }
 .modal {
@@ -603,6 +605,7 @@ a { color: inherit; text-decoration: none; }
   max-width: 480px; width: 100%;
   box-shadow: 0 20px 60px rgba(0,0,0,.2);
   position: relative;
+  margin: max(20px, env(safe-area-inset-top)) auto max(20px, env(safe-area-inset-bottom));
 }
 .modal h3 {
   font-family: var(--font-head);
@@ -1070,7 +1073,7 @@ a { color: inherit; text-decoration: none; }
 
           <!-- Opciones de pago -->
           <p style="font-size:.82rem;font-weight:700;color:var(--ink);margin-bottom:10px">💳 Opciones de pago</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="cuotas-grid">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px" id="cuotas-grid">
             <!-- Se rellena por JS -->
           </div>
 
@@ -2901,7 +2904,6 @@ function renderCuotas(total){
     </div>`;
 
   const grid = document.getElementById('cuotas-grid');
-  grid.style.gridTemplateColumns = '1fr 1fr';
   grid.innerHTML = html;
   datosPaciente.cuota12 = cuotaInicial;
   datosPaciente.cuota6  = saldoInicial > 0 ? Math.round(saldoInicial/6) : 0;
@@ -3066,7 +3068,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-08-config-manual-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-08-cuotas-mobile-fix-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
