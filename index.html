@@ -3082,7 +3082,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-08-barra-fija-mobile-fix-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-08-fix-testing-bugs-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
@@ -3356,8 +3356,7 @@ function cargarSlots(){
 
   const timeout = setTimeout(()=>{
     loading.style.display='none';
-    errEl.style.display='block'; errEl.textContent='Tiempo agotado. Coordiná por WhatsApp.';
-    list.innerHTML=`<button class="slot-btn" onclick="coordinarPorWA()">💬 Coordinar por WhatsApp</button>`;
+    errEl.style.display='block'; errEl.textContent='Tiempo agotado. Coordiná por WhatsApp más abajo.';
     delete window[cbName];
     if(script.parentNode) script.parentNode.removeChild(script);
   }, 12000);
@@ -3372,13 +3371,11 @@ function cargarSlots(){
     // por WhatsApp con la disponibilidad que ya eligió el cliente.
     if(data.sinMedicosHabilitados){
       errEl.style.display='block';
-      errEl.textContent='Por este momento no tenemos turnos online por acá. Coordinemos por WhatsApp con tu disponibilidad.';
-      list.innerHTML=`<button class="slot-btn" onclick="coordinarPorWA()">💬 Coordinar por WhatsApp</button>`;
+      errEl.textContent='Por este momento no tenemos turnos online por acá. Coordinemos por WhatsApp más abajo, con tu disponibilidad.';
       return;
     }
     if(data.error||!data.slots||!data.slots.length){
-      errEl.style.display='block'; errEl.textContent='Sin horarios disponibles. Coordiná por WhatsApp.';
-      list.innerHTML=`<button class="slot-btn" onclick="coordinarPorWA()">💬 Coordinar por WhatsApp</button>`;
+      errEl.style.display='block'; errEl.textContent='Sin horarios disponibles. Coordiná por WhatsApp más abajo.';
       return;
     }
     const slotsOrdenados = data.slots.sort((a,b)=>new Date(a.inicio)-new Date(b.inicio));
@@ -3409,37 +3406,10 @@ function cargarSlots(){
   script.onerror = ()=>{
     clearTimeout(timeout);
     loading.style.display='none';
-    errEl.style.display='block'; errEl.textContent='Error al conectar con el calendario. Coordiná por WhatsApp.';
-    list.innerHTML=`<button class="slot-btn" onclick="coordinarPorWA()">💬 Coordinar por WhatsApp</button>`;
+    errEl.style.display='block'; errEl.textContent='Error al conectar con el calendario. Coordiná por WhatsApp más abajo.';
     delete window[cbName];
   };
   document.head.appendChild(script);
-}
-
-// (Alternativa no-JSONP de dibujar los turnos; ver el render real dentro de cargarSlots.)
-function renderSlots(data){
-  const loading=document.getElementById('slots-loading');
-  const list   =document.getElementById('slots-list');
-  const errEl  =document.getElementById('slots-err');
-  loading.style.display='none';
-  if(data.error||!data.slots||!data.slots.length){
-    errEl.style.display='block'; errEl.textContent='Sin horarios disponibles. Coordiná por WhatsApp.';
-    list.innerHTML=`<button class="slot-btn" onclick="coordinarPorWA()">💬 Coordinar por WhatsApp</button>`;
-    return;
-  }
-  list.innerHTML=data.slots.map((s,i)=>`
-    <button class="slot-btn" data-idx="${i}" onclick='elegirSlot(this,${JSON.stringify(s)})'>
-      <span style="font-size:1.2rem">📅</span>
-      <div><div style="font-weight:700">${s.label}</div><div style="font-size:.78rem;opacity:.8">Médico: ${s.medico}</div></div>
-    </button>`).join('');
-}
-
-// Muestra un mensaje de error en el panel de horarios, con el botón de fallback a WhatsApp.
-function renderSlotsError(msg){
-  document.getElementById('slots-loading').style.display='none';
-  const errEl=document.getElementById('slots-err');
-  errEl.style.display='block'; errEl.textContent=msg;
-  document.getElementById('slots-list').innerHTML=`<button class="slot-btn" onclick="coordinarPorWA()">💬 Coordinar por WhatsApp</button>`;
 }
 
 // Marca el turno elegido, adopta su modalidad si trae una propia (modo 'variado'),
