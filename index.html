@@ -897,7 +897,7 @@ a { color: inherit; text-decoration: none; }
         <div class="pasos-header" style="flex-wrap:wrap;gap:6px">
           <h3>Tu plan estimado del método PnK®</h3>
           <div style="text-align:right">
-            <div class="costo-rango" id="costo-rango">USD – – –</div>
+            <div class="costo-rango" id="costo-rango">– – –</div>
             <div id="tiempo-rango" style="font-size:.82rem;color:rgba(255,255,255,.85);margin-top:3px;font-weight:600;letter-spacing:.02em"></div>
           </div>
         </div>
@@ -927,9 +927,9 @@ a { color: inherit; text-decoration: none; }
           </div>
           <div style="background:#fff;border-radius:8px;padding:12px 14px">
             <div style="font-size:.72rem;color:var(--muted);margin-bottom:4px">Se comienza con · Primer control médico · 15 días Paso 1</div>
-            <div style="font-size:1.1rem;font-weight:700;color:var(--gold);margin-bottom:8px"><span id="inv-inicial-label">USD $– –</span> <span style="font-size:.78rem;font-weight:600;color:var(--muted)">+ Consulta Médica</span></div>
-            <div style="font-size:.8rem;color:var(--ink);margin-bottom:4px" id="inv-detalle-alim">🥗 Alimentación: USD $– –</div>
-            <div style="font-size:.8rem;color:var(--ink);margin-bottom:4px" id="inv-detalle-suple">💊 Suplementos: USD $– –</div>
+            <div style="font-size:1.1rem;font-weight:700;color:var(--gold);margin-bottom:8px"><span id="inv-inicial-label">$– –</span> <span style="font-size:.78rem;font-weight:600;color:var(--muted)">+ Consulta Médica</span></div>
+            <div style="font-size:.8rem;color:var(--ink);margin-bottom:4px" id="inv-detalle-alim">🥗 Alimentación: $– –</div>
+            <div style="font-size:.8rem;color:var(--ink);margin-bottom:4px" id="inv-detalle-suple">💊 Suplementos: $– –</div>
 
           </div>
         </div>
@@ -1505,7 +1505,7 @@ function mostrarSeguimiento(calc, kg){
   // Actualizar label del gasto quincenal con valor real del cálculo
   const lbl = document.getElementById('gasto-quincenal-label');
   if(lbl && calc.inversionInicial) {
-    lbl.textContent = `Primera compra → ~USD $${Math.round(calc.inversionInicial)} en productos y suplementos`;
+    lbl.textContent = `Primera compra → ~${_monedaSimbolo}${Math.round(calc.inversionInicial)} en productos y suplementos`;
   }
 
   // Sección B: una tarjeta por CADA control médico real (cada 15 días),
@@ -1528,7 +1528,7 @@ function mostrarSeguimiento(calc, kg){
     <div style="background:var(--white);border:${borde};border-radius:10px;padding:12px 16px;text-align:center;min-width:140px;${sombra}flex:1">
       <div style="font-size:.72rem;font-weight:700;color:${colorTit};margin-bottom:3px">${titulo}</div>
       <div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">${subDias}</div>
-      <div style="font-size:1.1rem;font-weight:700;color:var(--ink)">USD $${Math.round(esPrimera ? calc.inversionInicial : qd.costoTotal).toLocaleString('es-UY')}</div>
+      <div style="font-size:1.1rem;font-weight:700;color:var(--ink)">${_monedaSimbolo}${Math.round(esPrimera ? calc.inversionInicial : qd.costoTotal).toLocaleString('es-UY')}</div>
       <div style="font-size:.68rem;color:var(--muted);margin-top:3px">Fase ${fase}</div>
     </div>`;
   }).join('');
@@ -1654,6 +1654,9 @@ const CONFIG = {
 // el resultado ya calculado al servidor en vez de calcularlo acá.
 
 let sexo    = 'mujer';
+// Símbolo de moneda a mostrar — llega del backend (según la configuración manual del
+// Sheet). Arranca en USD por defecto hasta que llegue la primera respuesta real.
+let _monedaSimbolo = 'USD $';
 let horario = '';
 let datosPaciente = {};
 
@@ -1693,6 +1696,7 @@ function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
       delete window[cbName];
       if(script.parentNode) script.parentNode.removeChild(script);
       if(data && data.error){ reject(new Error(data.error)); return; }
+      if(data && data.simbolo) _monedaSimbolo = data.simbolo; // moneda configurada en el Sheet
       resolve(data);
     };
     script.onerror = () => {
@@ -2067,7 +2071,7 @@ function calcularSuplementos(diasCeto, diasTotal){
     totalSuple += Math.round(cajasNeeded * 7 * precioUnit);
   });
   const supleEl = document.getElementById('suple-total');
-  if(supleEl) supleEl.textContent = `USD $${totalSuple}`;
+  if(supleEl) supleEl.textContent = `${_monedaSimbolo}${totalSuple}`;
   datosPaciente.costoSuplementos = totalSuple;
   // NO llamar recalcularTotal aquí — evita sobreescribir costoMedio correcto
 }
@@ -2098,9 +2102,9 @@ function actualizarCostoRango(){
   const cr = document.getElementById('costo-rango');
   if(!cr) return;
   if(pct > 0){
-    cr.textContent = `Inversión estimada · USD $${final_.toLocaleString('es-UY')} (${pct}% desc.) + Consultas Médicas`;
+    cr.textContent = `Inversión estimada · ${_monedaSimbolo}${final_.toLocaleString('es-UY')} (${pct}% desc.) + Consultas Médicas`;
   } else {
-    cr.textContent = `Inversión estimada · USD $${base.toLocaleString('es-UY')} + Consultas Médicas`;
+    cr.textContent = `Inversión estimada · ${_monedaSimbolo}${base.toLocaleString('es-UY')} + Consultas Médicas`;
   }
 }
 
@@ -2129,6 +2133,7 @@ function pedirPrecioConsulta(tipo, modalidad){
       delete window[cbName];
       if(script.parentNode) script.parentNode.removeChild(script);
       const precio = (data && data.precio) || 0;
+      if(data && data.simbolo) _monedaSimbolo = data.simbolo; // moneda configurada en el Sheet
       _cachePreciosConsulta[key] = precio;
       resolve(precio);
     };
@@ -2140,7 +2145,7 @@ function pedirPrecioConsulta(tipo, modalidad){
 
 // Da formato de precio en pesos uruguayos a un número (ej. 1500 → '$1.500').
 function formatPrecio(p){
-  return '$' + p.toLocaleString('es-UY');
+  return _monedaSimbolo + p.toLocaleString('es-UY');
 }
 
 /* ---- Nueva UI de disponibilidad ---- */
@@ -2553,7 +2558,7 @@ function enviarAvisaDescuento(){
   if(!contacto){ errEl.style.display='block'; okEl.style.display='none'; return; }
   errEl.style.display = 'none';
   const d   = datosPaciente;
-  const info = d.kg ? ` | ${d.kg} kg a perder · ~${d.sem} sem · USD $${d.costoMedio}` : '';
+  const info = d.kg ? ` | ${d.kg} kg a perder · ~${d.sem} sem · ${_monedaSimbolo}${d.costoMedio}` : '';
   const msg  = encodeURIComponent(
     `🔔 *Quiero que me avisen cuando haya descuentos PnK®*\n\n` +
     `📞 Contacto: ${contacto}${info}\n\n` +
@@ -2651,7 +2656,7 @@ function actualizarDesglose(d, inv){
   const sobraAlim = document.getElementById('inv-sobra-alim');
   const sobraSup  = document.getElementById('inv-sobra-suple');
 
-  if(invLabel) invLabel.textContent = 'USD $' + (inv||d.total).toLocaleString('es-UY');
+  if(invLabel) invLabel.textContent = _monedaSimbolo + (inv||d.total).toLocaleString('es-UY');
   if(alimEl)  alimEl.textContent  = '🥗 Alimentación';
   if(supleEl) supleEl.textContent = '💊 Suplementos';
 
@@ -2661,9 +2666,9 @@ function actualizarDesglose(d, inv){
     .map(s => `${s.nombre} ${s.sobrantes}u`)
     .join(' + ');
 
-  if(sobraAlim) sobraAlim.textContent = `🥗 ${d.alimSobrantes} sobres USD $${d.alimSobranteValor}`;
-  if(sobraSup)  sobraSup.textContent  = `💊 ${supleNombres} USD $${d.supleSobranteValor}`;
-  if(sobraEl)   sobraEl.innerHTML = `USD $${d.sobranteTotal.toLocaleString('es-UY')} = <span id="inv-sobra-alim">🥗 ${d.alimSobrantes} sobres</span> + <span id="inv-sobra-suple">💊 ${supleNombres}</span>`;
+  if(sobraAlim) sobraAlim.textContent = `🥗 ${d.alimSobrantes} sobres ${_monedaSimbolo}${d.alimSobranteValor}`;
+  if(sobraSup)  sobraSup.textContent  = `💊 ${supleNombres} ${_monedaSimbolo}${d.supleSobranteValor}`;
+  if(sobraEl)   sobraEl.innerHTML = `${_monedaSimbolo}${d.sobranteTotal.toLocaleString('es-UY')} = <span id="inv-sobra-alim">🥗 ${d.alimSobrantes} sobres</span> + <span id="inv-sobra-suple">💊 ${supleNombres}</span>`;
 }
 
 // Actualiza el texto que muestra el kg objetivo elegido en el selector.
@@ -2836,11 +2841,11 @@ function setDescuento(pct){
   if(pct > 0){
     // Header dorado
     descEl.style.display = 'block';
-    descEl.textContent   = `✅ Con ${pct}% de descuento: USD $${final_.toLocaleString('es-UY')} (ahorrás USD $${(base-final_).toLocaleString('es-UY')})`;
+    descEl.textContent   = `✅ Con ${pct}% de descuento: ${_monedaSimbolo}${final_.toLocaleString('es-UY')} (ahorrás ${_monedaSimbolo}${(base-final_).toLocaleString('es-UY')})`;
     actualizarCostoRango();
     // Panel "Se comienza con"
     const invLabel = document.getElementById('inv-inicial-label');
-    if(invLabel) invLabel.innerHTML = `<span style="text-decoration:line-through;opacity:.6;font-size:.9rem">USD $${invBase.toLocaleString('es-UY')}</span> <span style="color:var(--ok)">USD $${invFinal.toLocaleString('es-UY')}</span>`;
+    if(invLabel) invLabel.innerHTML = `<span style="text-decoration:line-through;opacity:.6;font-size:.9rem">${_monedaSimbolo}${invBase.toLocaleString('es-UY')}</span> <span style="color:var(--ok)">${_monedaSimbolo}${invFinal.toLocaleString('es-UY')}</span>`;
     // Nota de descuento en el panel
     let notaDesc = document.getElementById('nota-descuento-inicio');
     if(!notaDesc){
@@ -2851,13 +2856,13 @@ function setDescuento(pct){
       if(invLabelEl && invLabelEl.parentNode) invLabelEl.parentNode.appendChild(notaDesc);
     }
     notaDesc.style.display = 'block';
-    notaDesc.textContent = `✅ ${pct}% de descuento aplicado · Ahorrás USD $${(invBase-invFinal).toLocaleString('es-UY')}`;
+    notaDesc.textContent = `✅ ${pct}% de descuento aplicado · Ahorrás ${_monedaSimbolo}${(invBase-invFinal).toLocaleString('es-UY')}`;
   } else {
     descEl.style.display = 'none';
     actualizarCostoRango();
     // Restaurar panel "Se comienza con"
     const invLabel = document.getElementById('inv-inicial-label');
-    if(invLabel) invLabel.textContent = `USD $${invBase.toLocaleString('es-UY')}`;
+    if(invLabel) invLabel.textContent = `${_monedaSimbolo}${invBase.toLocaleString('es-UY')}`;
     const notaDesc = document.getElementById('nota-descuento-inicio');
     if(notaDesc) notaDesc.style.display = 'none';
   }
@@ -2876,17 +2881,17 @@ function renderCuotas(total){
   const html = `
     <div style="background:var(--gold-ll);border:1.5px solid var(--divider);border-radius:var(--r-sm);padding:16px">
       <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px">💵 Contado / Entrega a cuenta</div>
-      <div style="font-size:1.3rem;font-weight:700;color:var(--gold);font-family:var(--font-head);margin-bottom:4px">USD $${total.toLocaleString('es-UY')}</div>
+      <div style="font-size:1.3rem;font-weight:700;color:var(--gold);font-family:var(--font-head);margin-bottom:4px">${_monedaSimbolo}${total.toLocaleString('es-UY')}</div>
       <div style="font-size:.72rem;color:var(--muted);margin-bottom:12px">Total del tratamiento</div>
       <div style="font-size:.82rem;color:var(--ink);font-weight:600;margin-bottom:5px">Inversión inicial para comenzar:</div>
       <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:.9rem;color:var(--ink);font-weight:600">USD $</span>
+        <span style="font-size:.9rem;color:var(--ink);font-weight:600">${_monedaSimbolo}</span>
         <input id="entrega-parcial" type="number" inputmode="decimal" min="0" max="${total}" step="10"
           value="${entregaSugerida}"
           oninput="actualizarFinanciado(${total})"
           style="flex:1;padding:9px 10px;border:1.5px solid var(--divider);border-radius:6px;font-size:1rem;font-weight:700;background:#fff;font-family:var(--font-body);color:var(--gold)">
       </div>
-      <div id="saldo-resto" style="font-size:.8rem;color:var(--muted);margin-top:8px">Saldo a financiar: USD $${saldoInicial.toLocaleString('es-UY')}</div>
+      <div id="saldo-resto" style="font-size:.8rem;color:var(--muted);margin-top:8px">Saldo a financiar: ${_monedaSimbolo}${saldoInicial.toLocaleString('es-UY')}</div>
     </div>
 
     <div style="background:var(--gold-ll);border:1.5px solid var(--divider);border-radius:var(--r-sm);padding:16px">
@@ -2899,9 +2904,9 @@ function renderCuotas(total){
           border-radius:6px;font-size:.88rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">${n} ctas</button>`).join('')}
       </div>
       <div style="text-align:center;background:#fff;border-radius:8px;padding:12px">
-        <div id="cuota-label" style="font-size:.75rem;color:var(--muted);margin-bottom:4px">Financiando USD $${saldoInicial.toLocaleString('es-UY')} en ${maxCuotas} cuotas</div>
-        <div id="cuota-valor" style="font-size:1.6rem;font-weight:700;color:var(--gold);font-family:var(--font-head)">${maxCuotas} × USD $${cuotaInicial.toLocaleString('es-UY')}</div>
-        <div id="cuota-total" style="font-size:.72rem;color:var(--muted);margin-top:3px">Saldo · USD $${saldoInicial.toLocaleString('es-UY')}</div>
+        <div id="cuota-label" style="font-size:.75rem;color:var(--muted);margin-bottom:4px">Financiando ${_monedaSimbolo}${saldoInicial.toLocaleString('es-UY')} en ${maxCuotas} cuotas</div>
+        <div id="cuota-valor" style="font-size:1.6rem;font-weight:700;color:var(--gold);font-family:var(--font-head)">${maxCuotas} × ${_monedaSimbolo}${cuotaInicial.toLocaleString('es-UY')}</div>
+        <div id="cuota-total" style="font-size:.72rem;color:var(--muted);margin-top:3px">Saldo · ${_monedaSimbolo}${saldoInicial.toLocaleString('es-UY')}</div>
       </div>
     </div>`;
 
@@ -2920,7 +2925,7 @@ function actualizarFinanciado(total){
     el.textContent = '✅ Cubre el total completo';
     el.style.color = 'var(--ok)';
   } else {
-    el.textContent = `Saldo a financiar: USD $${saldo.toLocaleString('es-UY')}`;
+    el.textContent = `Saldo a financiar: ${_monedaSimbolo}${saldo.toLocaleString('es-UY')}`;
     el.style.color = '';
   }
   const btnActivo = document.querySelector('.cuota-activa');
@@ -2948,9 +2953,9 @@ function _actualizarDisplayCuota(n, saldo){
   const lbl   = document.getElementById('cuota-label');
   const val   = document.getElementById('cuota-valor');
   const tot   = document.getElementById('cuota-total');
-  if(lbl) lbl.textContent = `Financiando USD $${saldo.toLocaleString('es-UY')} en ${n} cuotas`;
-  if(val) val.textContent = saldo > 0 ? `${n} × USD $${cuota.toLocaleString('es-UY')}` : 'Sin saldo a financiar';
-  if(tot) tot.textContent = `Saldo · USD $${saldo.toLocaleString('es-UY')}`;
+  if(lbl) lbl.textContent = `Financiando ${_monedaSimbolo}${saldo.toLocaleString('es-UY')} en ${n} cuotas`;
+  if(val) val.textContent = saldo > 0 ? `${n} × ${_monedaSimbolo}${cuota.toLocaleString('es-UY')}` : 'Sin saldo a financiar';
+  if(tot) tot.textContent = `Saldo · ${_monedaSimbolo}${saldo.toLocaleString('es-UY')}`;
 }
 
 /* ================================================================
@@ -3068,8 +3073,8 @@ function enviarCalculosWA(){
     `📊 *Mis cálculos PnK® Uruguay*\n\n` +
     `👤 ${perfil}\n` +
     `⏱ Duración estimada: ~${d.sem} semanas\n` +
-    `💰 *Inversión estimada: USD $${d.costoMedio}* _(sin descuentos)_\n` +
-    `💳 12 × USD $${d.cuota12} con MercadoPago | 6 × USD $${d.cuota6} con tarjeta\n\n` +
+    `💰 *Inversión estimada: ${_monedaSimbolo}${d.costoMedio}* _(sin descuentos)_\n` +
+    `💳 12 × ${_monedaSimbolo}${d.cuota12} con MercadoPago | 6 × ${_monedaSimbolo}${d.cuota6} con tarjeta\n\n` +
     `Quiero agendar mi consulta médica 🙋`
   );
   window.open(`https://wa.me/${CONFIG.waNum}?text=${msg}`,'_blank');
@@ -3082,7 +3087,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-08-fix-testing-bugs-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-08-moneda-configurable-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
