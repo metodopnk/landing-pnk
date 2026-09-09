@@ -1675,6 +1675,22 @@ function setSexo(s){
    Devuelve una Promise (antes era un cálculo instantáneo) — todo lugar que la
    llama tuvo que pasar a ser 'async function' y usar 'await'.
    ================================================================ */
+/* ================================================================
+   REPORTE DE ERRORES — avisa por mail cuando algo falla del lado del navegador
+   (timeouts, fallos de conexión) que de otra forma no le llegan a nadie, porque
+   nunca se convierten en una respuesta real del backend.
+   ================================================================ */
+function reportarErrorAlBackend(tipo, detalle){
+  try{
+    const params = new URLSearchParams({ action:'reportarError', tipo, detalle: detalle || '', callback:'pnkErrNoop' });
+    const script = document.createElement('script');
+    window.pnkErrNoop = function(){ delete window.pnkErrNoop; if(script.parentNode) script.parentNode.removeChild(script); };
+    script.onerror = () => { if(script.parentNode) script.parentNode.removeChild(script); }; // no reintentar si esto también falla
+    script.src = `${APPS_SCRIPT_URL}?${params.toString()}`;
+    document.head.appendChild(script);
+  }catch(e){ /* si esto falla, no hay mucho más que hacer */ }
+}
+
 function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
   return new Promise((resolve, reject) => {
     const cbName = 'pnkCalc_' + Date.now() + '_' + Math.floor(Math.random()*10000);
@@ -1688,6 +1704,7 @@ function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
     const timeout = setTimeout(() => {
       delete window[cbName];
       if(script.parentNode) script.parentNode.removeChild(script);
+      reportarErrorAlBackend('timeout_calcularPlan', `kg=${kg} imc=${imc}`);
       reject(new Error('Tiempo agotado calculando el plan'));
     }, 15000);
 
@@ -1703,6 +1720,7 @@ function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
       clearTimeout(timeout);
       delete window[cbName];
       console.error('calcularDesdeKg: falló la carga del script (red/CORS)');
+      reportarErrorAlBackend('conexion_calcularPlan', `kg=${kg} imc=${imc}`);
       reject(new Error('No se pudo conectar con el servidor de cálculo'));
     };
     script.src = `${APPS_SCRIPT_URL}?${params.toString()}`;
@@ -3087,7 +3105,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-08-moneda-configurable-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-08-alertas-error-mail-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
@@ -3362,6 +3380,7 @@ function cargarSlots(){
   const timeout = setTimeout(()=>{
     loading.style.display='none';
     errEl.style.display='block'; errEl.textContent='Tiempo agotado. Coordiná por WhatsApp más abajo.';
+    reportarErrorAlBackend('timeout_getSlots', `modalidad=${mod} tipo=${tipo} disp=${disp}`);
     delete window[cbName];
     if(script.parentNode) script.parentNode.removeChild(script);
   }, 12000);
@@ -3412,6 +3431,7 @@ function cargarSlots(){
     clearTimeout(timeout);
     loading.style.display='none';
     errEl.style.display='block'; errEl.textContent='Error al conectar con el calendario. Coordiná por WhatsApp más abajo.';
+    reportarErrorAlBackend('conexion_getSlots', `modalidad=${mod} tipo=${tipo} disp=${disp}`);
     delete window[cbName];
   };
   document.head.appendChild(script);
