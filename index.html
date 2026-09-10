@@ -1265,6 +1265,18 @@ a { color: inherit; text-decoration: none; }
         </div>
       </div>
 
+      <!-- Cantidad de personas en la consulta -->
+      <div id="modal-personas-wrap" style="margin-top:12px">
+        <label style="font-size:.85rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px">¿Cuántas personas van a la consulta?</label>
+        <div style="display:flex;gap:8px" id="personas-btns">
+          <button type="button" class="btn-tipo activo" data-personas="1" onclick="setCantidadPersonas(this)" style="flex:1">1</button>
+          <button type="button" class="btn-tipo" data-personas="2" onclick="setCantidadPersonas(this)" style="flex:1">2</button>
+          <button type="button" class="btn-tipo" data-personas="3" onclick="setCantidadPersonas(this)" style="flex:1">3</button>
+          <button type="button" class="btn-tipo" data-personas="4" onclick="setCantidadPersonas(this)" style="flex:1">4</button>
+        </div>
+        <div id="acompanantes-wrap" style="margin-top:10px;display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+
       <p class="modal-terms" style="margin-top:14px">Al enviar aceptás los <a href="https://pronokal.uy/terminos-y-condiciones/" target="_blank">Términos y condiciones</a> y la <a href="https://pronokal.uy/politica-de-privacidad/" target="_blank">Política de privacidad</a>.</p>
       <p id="modal-err" style="color:var(--obes);font-size:.85rem;margin-bottom:10px;display:none">Completá los campos obligatorios (*).</p>
       <button class="btn-modal-send" id="btn-modal-send" onclick="irAPaso2()">Ver horarios disponibles →</button>
@@ -2150,14 +2162,15 @@ function actualizarCostoRango(){
 const _cachePreciosConsulta = {};
 
 // Pide al backend el precio de una consulta puntual (tipo+modalidad) y lo cachea.
-function pedirPrecioConsulta(tipo, modalidad){
+function pedirPrecioConsulta(tipo, modalidad, cantidadPersonas){
   const mod = modalidad === 'online' ? 'online' : 'presencial';
-  const key = tipo + '|' + mod;
+  const personas = cantidadPersonas || _cantidadPersonas || 1;
+  const key = tipo + '|' + mod + '|' + personas;
   if(_cachePreciosConsulta[key] !== undefined) return Promise.resolve(_cachePreciosConsulta[key]);
 
   return new Promise((resolve) => {
     const cbName = 'pnkPrecio_' + Date.now() + '_' + Math.floor(Math.random()*10000);
-    const params = new URLSearchParams({ action:'precioConsulta', tipo, modalidad: mod, callback: cbName });
+    const params = new URLSearchParams({ action:'precioConsulta', tipo, modalidad: mod, cantidadPersonas: personas, callback: cbName });
     const script = document.createElement('script');
     const timeout = setTimeout(() => { delete window[cbName]; if(script.parentNode) script.parentNode.removeChild(script); resolve(0); }, 10000);
     window[cbName] = function(data){
@@ -3119,7 +3132,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-08-documento-antes-confirmar-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-08-personas-adicionales-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
@@ -3173,7 +3186,88 @@ function setModalidad(btn){
   _modalidad = btn.dataset.mod;
   document.querySelectorAll('.btn-tipo[data-mod]').forEach(b=>b.classList.remove('activo'));
   btn.classList.add('activo');
-  if(_tipoConsulta) pedirPrecioConsulta(_tipoConsulta, _modalidad); // precargar en caché
+  if(_tipoConsulta) pedirPrecioConsulta(_tipoConsulta, _modalidad, _cantidadPersonas); // precargar en caché
+}
+
+/* ================================================================
+   PERSONAS ADICIONALES — hasta 4 personas por consulta, cada una con
+   su propio nombre/apellido/documento (validado igual que el titular).
+   ================================================================ */
+let _cantidadPersonas = 1;
+let _acompanantes = []; // [{nombre, apellido, tipoDocumento, numeroDocumento}, ...] — solo los adicionales (sin el titular)
+
+function setCantidadPersonas(btn){
+  _cantidadPersonas = parseInt(btn.dataset.personas, 10) || 1;
+  document.querySelectorAll('#personas-btns .btn-tipo').forEach(b=>b.classList.remove('activo'));
+  btn.classList.add('activo');
+  if(_tipoConsulta && _modalidad) pedirPrecioConsulta(_tipoConsulta, _modalidad, _cantidadPersonas); // el precio cambia con la cantidad
+  renderAcompanantes();
+}
+
+// Dibuja una tarjeta por cada persona adicional (cantidad elegida menos el titular).
+function renderAcompanantes(){
+  const wrap = document.getElementById('acompanantes-wrap');
+  const cantidadAdicionales = _cantidadPersonas - 1;
+
+  // Conservar los datos ya cargados si solo cambió la cantidad (no perder lo tipeado)
+  while(_acompanantes.length < cantidadAdicionales) _acompanantes.push({nombre:'', apellido:'', tipoDocumento:'cedula', numeroDocumento:''});
+  _acompanantes.length = Math.max(0, cantidadAdicionales);
+
+  if(cantidadAdicionales <= 0){ wrap.innerHTML = ''; return; }
+
+  wrap.innerHTML = _acompanantes.map((p, i) => `
+    <div style="background:var(--gold-ll);border-radius:10px;padding:12px;border:1.5px solid var(--divider)">
+      <div style="font-size:.8rem;font-weight:700;color:var(--ink);margin-bottom:8px">👤 Persona ${i+2}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <input type="text" placeholder="Nombre" value="${p.nombre}" oninput="onAcompananteInput(${i},'nombre',this.value)"
+          style="padding:9px 10px;border:1.5px solid var(--divider);border-radius:8px;font-size:.88rem;font-family:var(--font-body);box-sizing:border-box">
+        <input type="text" placeholder="Apellido" value="${p.apellido}" oninput="onAcompananteInput(${i},'apellido',this.value)"
+          style="padding:9px 10px;border:1.5px solid var(--divider);border-radius:8px;font-size:.88rem;font-family:var(--font-body);box-sizing:border-box">
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <button type="button" onclick="setTipoDocAcompanante(${i},'cedula')"
+          style="flex:1;padding:7px;border-radius:6px;border:1.5px solid var(--divider);font-size:.78rem;cursor:pointer;font-family:var(--font-body);background:${p.tipoDocumento==='cedula'?'var(--gold)':'#fff'};color:${p.tipoDocumento==='cedula'?'#fff':'var(--ink)'}">Cédula</button>
+        <button type="button" onclick="setTipoDocAcompanante(${i},'pasaporte')"
+          style="flex:1;padding:7px;border-radius:6px;border:1.5px solid var(--divider);font-size:.78rem;cursor:pointer;font-family:var(--font-body);background:${p.tipoDocumento==='pasaporte'?'var(--gold)':'#fff'};color:${p.tipoDocumento==='pasaporte'?'#fff':'var(--ink)'}">Pasaporte</button>
+      </div>
+      <input type="text" placeholder="${p.tipoDocumento==='cedula'?'Documento (sin guión)':'Pasaporte'}" value="${p.numeroDocumento}" oninput="onAcompananteInput(${i},'numeroDocumento',this.value)"
+        style="width:100%;padding:9px 10px;border:1.5px solid var(--divider);border-radius:8px;font-size:.88rem;font-family:var(--font-body);box-sizing:border-box">
+      <div id="acomp-msg-${i}" style="font-size:.72rem;margin-top:4px;display:none"></div>
+    </div>
+  `).join('');
+
+  _acompanantes.forEach((p,i) => validarAcompanante(i));
+}
+
+function onAcompananteInput(i, campo, valor){
+  _acompanantes[i][campo] = valor;
+  if(campo === 'numeroDocumento') validarAcompanante(i);
+}
+
+function setTipoDocAcompanante(i, tipo){
+  _acompanantes[i].tipoDocumento = tipo;
+  renderAcompanantes();
+}
+
+function validarAcompanante(i){
+  const p = _acompanantes[i];
+  const msg = document.getElementById('acomp-msg-'+i);
+  if(!msg) return true;
+  if(!p.numeroDocumento){ msg.style.display='none'; return false; }
+  const valido = p.tipoDocumento === 'cedula' ? validarCedulaUY(p.numeroDocumento) : validarPasaporte(p.numeroDocumento);
+  msg.style.display = 'block';
+  msg.textContent = valido ? '✓ Documento válido' : 'Documento inválido';
+  msg.style.color = valido ? '#4a9e70' : 'var(--obes)';
+  return valido;
+}
+
+// Todos los acompañantes tienen que tener nombre, apellido y documento válido.
+function acompanantesCompletos(){
+  if(_cantidadPersonas <= 1) return true;
+  return _acompanantes.every(p =>
+    p.nombre.trim() && p.apellido.trim() &&
+    (p.tipoDocumento === 'cedula' ? validarCedulaUY(p.numeroDocumento) : validarPasaporte(p.numeroDocumento))
+  );
 }
 
 function abrirModal(origen){
@@ -3185,6 +3279,12 @@ function abrirModal(origen){
   _showPaso(1);
   document.getElementById('modal-bg').classList.add('open');
   document.getElementById('m-nombre').focus();
+  // Resetear cantidad de personas y acompañantes de una reserva anterior
+  _cantidadPersonas = 1;
+  _acompanantes = [];
+  document.querySelectorAll('#personas-btns .btn-tipo').forEach((b,i)=>b.classList.toggle('activo', i===0));
+  const acompWrap = document.getElementById('acompanantes-wrap');
+  if(acompWrap) acompWrap.innerHTML = '';
   // Resetear el campo de documento (cédula/pasaporte) de una reserva anterior
   _tipoDocumento = 'cedula';
   const inputDoc = document.getElementById('input-documento');
@@ -3219,6 +3319,7 @@ function abrirVentanaLead(tipo, kg){
   const esTipoAgenda = (_modalOrigen === 'agenda' || _modalOrigen === 'hero' || _modalOrigen === 'footer' || _modalOrigen === 'barra');
   document.getElementById('modal-tipo-wrap').style.display     = esTipoAgenda ? 'block' : 'none';
   document.getElementById('modal-modalidad-wrap').style.display = esTipoAgenda ? 'block' : 'none';
+  document.getElementById('modal-personas-wrap').style.display  = esTipoAgenda ? 'block' : 'none';
   const btnSend = document.getElementById('btn-modal-send');
   if(btnSend) btnSend.textContent = esTipoAgenda ? 'Ver horarios disponibles →' : 'Continuar y calcular mi peso ideal →';
   // Limpiar estado visual de tipo y modalidad al abrir
@@ -3362,7 +3463,7 @@ async function irAPaso2(){
     {id:'m-depto',    val:depto},
     {id:'m-email',    val:emailAgenda},
   ]);
-  const primerErrorCampos = hayError ? validarCampo('m-nombre',nombre) || validarCampo('m-apellido',apellido) || validarCampo('m-tel',tel) || validarCampo('m-depto',depto) || validarCampo('m-email',emailAgenda) : null;
+  let primerErrorCampos = hayError ? validarCampo('m-nombre',nombre) || validarCampo('m-apellido',apellido) || validarCampo('m-tel',tel) || validarCampo('m-depto',depto) || validarCampo('m-email',emailAgenda) : null;
   if(esAgenda && !_tipoConsulta){
     document.querySelector('.btn-tipo')?.closest('div')?.style && (document.querySelectorAll('.btn-tipo')[0].closest('div').style.outline='2px solid var(--obes)');
     hayError=true;
@@ -3371,6 +3472,10 @@ async function irAPaso2(){
     document.querySelectorAll('.btn-mod')[0]?.closest('div') && (document.querySelectorAll('.btn-mod')[0].closest('div').style.outline='2px solid var(--obes)');
     hayError=true;
   } else { document.querySelectorAll('.btn-mod')[0]?.closest('div') && (document.querySelectorAll('.btn-mod')[0].closest('div').style.outline=''); }
+  if(esAgenda && !acompanantesCompletos()){
+    hayError = true;
+    if(!primerErrorCampos) primerErrorCampos = 'Completá nombre, apellido y documento de cada acompañante.';
+  }
   if(hayError){
     errEl.style.display='block';
     errEl.textContent = primerErrorCampos || (esAgenda ? 'Completá los campos marcados y elegí tipo y modalidad.' : 'Completá los campos obligatorios.');
@@ -3478,9 +3583,10 @@ async function elegirSlot(btn,slot){
   if(confWrap){
     const tipoLabel = {'evaluacion':'Evaluación inicial','seguimiento':'Seguimiento','reinicio':'Reinicio'}[_tipoConsulta]||'Consulta';
     const ubicLabel = _modalidad==='online'?'Online':(_modalidad==='punta_carretas'?'Punta Carretas':'Parque Batlle');
-    const precio = await pedirPrecioConsulta(_tipoConsulta || 'evaluacion', _modalidad);
+    const precio = await pedirPrecioConsulta(_tipoConsulta || 'evaluacion', _modalidad, _cantidadPersonas);
+    const personasTxt = _cantidadPersonas > 1 ? ` · ${_cantidadPersonas} personas` : '';
     document.getElementById('confirm-slot-resumen').textContent =
-      `📅 ${slot.label} · ${tipoLabel} · ${ubicLabel}`;
+      `📅 ${slot.label} · ${tipoLabel} · ${ubicLabel}${personasTxt}`;
     const precioEl = document.getElementById('confirm-precio');
     if(precioEl) precioEl.textContent = formatPrecio(precio);
     const btnConf = document.getElementById('btn-confirmar-slot');
@@ -3496,6 +3602,7 @@ async function confirmarSlotElegido(){
   const numeroDoc = document.getElementById('input-documento').value.trim();
   const docValido = _tipoDocumento === 'cedula' ? validarCedulaUY(numeroDoc) : validarPasaporte(numeroDoc);
   if(!docValido) return;
+  if(!acompanantesCompletos()) return;
 
   // Ocultar panel de confirmación y lista de slots
   const confWrap = document.getElementById('confirm-slot-wrap');
@@ -3520,7 +3627,8 @@ async function confirmarAgenda(){
   // Asegurar el precio con await (no confiar solo en la caché) — este valor se
   // guarda de verdad en la reserva y en el mensaje de recordatorio de WhatsApp,
   // así que no puede quedar en $0 por una carga en caché que todavía no llegó.
-  const precioConsulta = await pedirPrecioConsulta(_tipoConsulta || 'evaluacion', _modalidad);
+  const precioConsulta = await pedirPrecioConsulta(_tipoConsulta || 'evaluacion', _modalidad, _cantidadPersonas);
+  const acompanantesJSON = _cantidadPersonas > 1 ? JSON.stringify(_acompanantes) : '';
 
   const params = new URLSearchParams({
     action:    'createEvent',
@@ -3533,7 +3641,9 @@ async function confirmarAgenda(){
     modalidad: _modalidad === 'online' ? 'online' : 'presencial',
     sede,
     tipo:      _tipoConsulta || 'evaluacion',
-    precio:    precioConsulta || ''
+    precio:    precioConsulta || '',
+    cantidadPersonas: _cantidadPersonas,
+    acompanantes: acompanantesJSON
   });
 
   const cbName = 'pnkEvt_' + Date.now();
@@ -3562,7 +3672,9 @@ async function confirmarAgenda(){
       linkRecordatorioWA: data.linkRecordatorioWA || '',
       precio: precioConsulta || '',
       tipoDocumento: _tipoDocumento === 'cedula' ? 'Cédula' : 'Pasaporte',
-      numeroDocumento: document.getElementById('input-documento').value.trim()
+      numeroDocumento: document.getElementById('input-documento').value.trim(),
+      cantidadPersonas: _cantidadPersonas,
+      acompanantes: acompanantesJSON
     });
 
     try {
