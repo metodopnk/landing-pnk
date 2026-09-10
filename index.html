@@ -5,12 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5">
 <title>Método PnK Uruguay · Perdé peso con respaldo médico</title>
 
-<!-- Pixel Meta: reemplazá YOUR_PIXEL_ID -->
+<!-- Pixel Meta -->
 <script>
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
-fbq('init','YOUR_PIXEL_ID');
+fbq('init','1717205340407442');
 fbq('track','PageView');
 </script>
+<noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1717205340407442&ev=PageView&noscript=1" /></noscript>
 
 <style>
 /* ============================================================
@@ -1395,6 +1396,22 @@ a { color: inherit; text-decoration: none; }
       <button class="btn-modal-send" id="btn-pagar-wa" style="margin-top:10px;display:flex;align-items:center;gap:8px;justify-content:center">
         💬 Confirmar y coordinar pago por WhatsApp
       </button>
+
+      <!-- Cédula o pasaporte, para completar la ficha del paciente -->
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--divider);text-align:left">
+        <div style="font-size:.85rem;font-weight:700;color:var(--ink);margin-bottom:8px">📄 Para completar tu ficha, dejanos tu documento:</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button type="button" class="btn-tipo activo" data-tipo="cedula" onclick="setTipoDocumento(this)" style="flex:1">Cédula</button>
+          <button type="button" class="btn-tipo" data-tipo="pasaporte" onclick="setTipoDocumento(this)" style="flex:1">Pasaporte</button>
+        </div>
+        <input id="input-documento" type="text" inputmode="text" placeholder="Ej: 1.234.567-8" oninput="onInputDocumento()"
+          style="width:100%;padding:10px 12px;border:1.5px solid var(--divider);border-radius:8px;font-size:.95rem;font-family:var(--font-body);box-sizing:border-box">
+        <div id="documento-msg" style="font-size:.78rem;margin-top:6px;display:none"></div>
+        <button type="button" id="btn-guardar-documento" onclick="guardarDocumento()" disabled
+          style="margin-top:10px;width:100%;padding:9px;border-radius:8px;border:none;background:var(--gold);color:#fff;font-weight:700;font-size:.85rem;opacity:.5;cursor:not-allowed;font-family:var(--font-body)">
+          Guardar documento
+        </button>
+      </div>
     </div>
 
   </div>
@@ -1598,6 +1615,7 @@ window.addEventListener('load', ()=>{
 /* ---- SESSION ID ---- */
 const SESSION_ID = 'pnk_' + Date.now() + '_' + Math.random().toString(36).substr(2,6);
 let _filaNum = null; // número de fila en el Sheet para esta sesión
+let _filaNumReserva = null; // número de fila de la RESERVA en "Clientes Potenciales" (para guardar el documento después de confirmar el turno)
 
 // Guarda una acción del usuario en el backend (Sheets), vía JSONP hacia el Apps
 // Script. 'boton' identifica QUÉ pasó (ver WA_COLS y los distintos 'boton' en el
@@ -1626,7 +1644,10 @@ function registrar(boton, extra){
   const cbName = 'pnkReg_' + Date.now();
   const script  = document.createElement('script');
   window[cbName] = function(res){
-    if(res && res.filaNum) _filaNum = res.filaNum;
+    if(res && res.filaNum){
+      if(['agendar_hero','agendar_barra','agendar_footer'].includes(boton)) _filaNumReserva = res.filaNum;
+      else _filaNum = res.filaNum;
+    }
     if(res && res.error) console.error('registrarEvento devolvió error:', res.error, '| boton:', boton);
     delete window[cbName];
     if(script.parentNode) script.parentNode.removeChild(script);
@@ -3105,7 +3126,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-08-alertas-error-mail-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-08-documento-cedula-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
@@ -3171,6 +3192,19 @@ function abrirModal(origen){
   _showPaso(1);
   document.getElementById('modal-bg').classList.add('open');
   document.getElementById('m-nombre').focus();
+  // Resetear el campo de documento (cédula/pasaporte) de una reserva anterior
+  _filaNumReserva = null;
+  _tipoDocumento = 'cedula';
+  const inputDoc = document.getElementById('input-documento');
+  if(inputDoc){
+    inputDoc.value = ''; inputDoc.disabled = false; inputDoc.style.borderColor = '';
+    inputDoc.placeholder = 'Ej: 1.234.567-8';
+  }
+  const msgDoc = document.getElementById('documento-msg');
+  if(msgDoc) msgDoc.style.display = 'none';
+  const btnDoc = document.getElementById('btn-guardar-documento');
+  if(btnDoc){ btnDoc.disabled = true; btnDoc.style.opacity = '.5'; btnDoc.style.cursor = 'not-allowed'; btnDoc.textContent = 'Guardar documento'; }
+  document.querySelectorAll('#modal-ok .btn-tipo').forEach((b,i)=>{ b.disabled = false; b.classList.toggle('activo', i===0); });
   // Solo señal de Pixel al abrir el modal — el Sheet "Clientes Potenciales" se llena
   // una única vez, en confirmarAgenda(), cuando el turno queda realmente reservado.
   if(window.fbq) fbq('track','InitiateCheckout',{content_name:'agenda_consulta',origen});
@@ -3580,6 +3614,122 @@ function nomenclaturaDisponibilidad(){
     noche: 'Noche (18 a 21hs)', post_trabajo: 'Después de las 12hs', variado: 'Varios horarios'
   };
   return labels[_disponibilidad] || '';
+}
+
+/* ================================================================
+   DOCUMENTO (Cédula o Pasaporte) — se pide después de confirmar el turno
+   ================================================================ */
+let _tipoDocumento = 'cedula';
+
+function setTipoDocumento(btn){
+  _tipoDocumento = btn.dataset.tipo;
+  document.querySelectorAll('#modal-ok .btn-tipo').forEach(b=>b.classList.remove('activo'));
+  btn.classList.add('activo');
+  const input = document.getElementById('input-documento');
+  input.placeholder = _tipoDocumento === 'cedula' ? 'Ej: 1.234.567-8' : 'Ej: AB123456';
+  onInputDocumento();
+}
+
+// Valida una cédula de identidad uruguaya con el algoritmo oficial del dígito
+// verificador (multiplicadores 2,9,8,7,6,3,4 sobre los primeros 7 dígitos).
+function validarCedulaUY(valor){
+  const limpio = String(valor||'').replace(/\D/g,'');
+  if(limpio.length < 7 || limpio.length > 8) return false;
+  const digitos = limpio.padStart(8,'0').split('').map(Number);
+  const mult = [2,9,8,7,6,3,4];
+  let suma = 0;
+  for(let i=0;i<7;i++) suma += digitos[i]*mult[i];
+  const resto = suma % 10;
+  const verificador = resto === 0 ? 0 : 10 - resto;
+  return verificador === digitos[7];
+}
+
+// Validación de pasaporte: alfanumérico, entre 5 y 15 caracteres (formato varía
+// mucho según el país, así que no hay un algoritmo único como con la cédula).
+function validarPasaporte(valor){
+  const limpio = String(valor||'').replace(/\s/g,'');
+  return /^[A-Za-z0-9]{5,15}$/.test(limpio);
+}
+
+function onInputDocumento(){
+  const input = document.getElementById('input-documento');
+  const msg   = document.getElementById('documento-msg');
+  const btn   = document.getElementById('btn-guardar-documento');
+  const valor = input.value.trim();
+
+  if(!valor){
+    msg.style.display = 'none';
+    input.style.borderColor = '';
+    btn.disabled = true; btn.style.opacity = '.5'; btn.style.cursor = 'not-allowed';
+    return;
+  }
+
+  const valido = _tipoDocumento === 'cedula' ? validarCedulaUY(valor) : validarPasaporte(valor);
+  msg.style.display = 'block';
+  if(valido){
+    msg.textContent = '✓ Documento válido';
+    msg.style.color = '#4a9e70';
+    input.style.borderColor = '#4a9e70';
+    btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
+  } else {
+    msg.textContent = _tipoDocumento === 'cedula' ? 'Cédula inválida — revisá el número.' : 'Ingresá un pasaporte válido (5 a 15 caracteres).';
+    msg.style.color = 'var(--obes)';
+    input.style.borderColor = 'var(--obes)';
+    btn.disabled = true; btn.style.opacity = '.5'; btn.style.cursor = 'not-allowed';
+  }
+}
+
+function guardarDocumento(){
+  const numero = document.getElementById('input-documento').value.trim();
+  const valido = _tipoDocumento === 'cedula' ? validarCedulaUY(numero) : validarPasaporte(numero);
+  if(!valido) return;
+  if(!_filaNumReserva){
+    console.error('guardarDocumento: no hay _filaNumReserva — ¿se confirmó el turno correctamente?');
+    return;
+  }
+
+  const btn = document.getElementById('btn-guardar-documento');
+  const btnTxt = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Guardando...';
+
+  const cbName = 'pnkDoc_' + Date.now();
+  const params = new URLSearchParams({
+    action: 'guardarDocumento',
+    filaNum: _filaNumReserva,
+    tipoDocumento: _tipoDocumento === 'cedula' ? 'Cédula' : 'Pasaporte',
+    numeroDocumento: numero,
+    callback: cbName
+  });
+  const script = document.createElement('script');
+  const timeout = setTimeout(() => {
+    delete window[cbName];
+    if(script.parentNode) script.parentNode.removeChild(script);
+    btn.textContent = 'No se pudo guardar — reintentar';
+    btn.disabled = false;
+  }, 10000);
+
+  window[cbName] = function(res){
+    clearTimeout(timeout);
+    delete window[cbName];
+    if(script.parentNode) script.parentNode.removeChild(script);
+    if(res && res.ok){
+      btn.textContent = '✓ Documento guardado';
+      document.getElementById('input-documento').disabled = true;
+      document.querySelectorAll('#modal-ok .btn-tipo').forEach(b=>b.disabled=true);
+    } else {
+      console.error('guardarDocumento: error del backend', res && res.error);
+      btn.textContent = 'No se pudo guardar — reintentar';
+      btn.disabled = false;
+    }
+  };
+  script.onerror = () => {
+    clearTimeout(timeout);
+    delete window[cbName];
+    btn.textContent = 'No se pudo guardar — reintentar';
+    btn.disabled = false;
+  };
+  script.src = `${APPS_SCRIPT_URL}?${params.toString()}`;
+  document.head.appendChild(script);
 }
 
 function coordinarPorWA(){
