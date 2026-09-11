@@ -1605,22 +1605,6 @@ window.addEventListener('scroll', ()=>{
   }
 }, { passive: true });
 
-/* ---- Reset de sesión (testing) ---- */
-function resetSesion(){
-  try{ localStorage.clear(); }catch(e){}
-  location.reload();
-}
-
-// Mostrar botón reset si hay datos en localStorage
-window.addEventListener('load', ()=>{
-  try{
-    if(localStorage.length > 0){
-      const wrap = document.getElementById('btn-reset-wrap');
-      if(wrap) wrap.style.display = 'block';
-    }
-  }catch(e){}
-});
-
 /* ---- SESSION ID ---- */
 const SESSION_ID = 'pnk_' + Date.now() + '_' + Math.random().toString(36).substr(2,6);
 let _filaNum = null; // número de fila en el Sheet para esta sesión
@@ -3132,7 +3116,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-08-anticipacion-configurable-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-08-sin-boton-reset-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
@@ -3815,6 +3799,5 @@ function enviarFormulario(){ irAPaso2(); }
 </script>
 
 <!-- BOTÓN RESET TESTING -->
-<button onclick="(function(){try{localStorage.clear();}catch(e){}location.reload();})()" style="position:fixed;bottom:70px;left:12px;z-index:9999;background:#e53935;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:.78rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">🗑 Reset</button>
 </body>
 </html>
