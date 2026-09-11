@@ -1357,7 +1357,7 @@ a { color: inherit; text-decoration: none; }
         <!-- PASO 2: Slots de calendario -->
     <div id="modal-paso2" style="display:none">
       <h3 style="font-family:var(--font-head);margin-bottom:6px">Elegí un horario</h3>
-      <p class="modal-sub">Próximos turnos disponibles (24–48 hs hábiles):</p>
+      <p class="modal-sub">Próximos turnos disponibles:</p>
       <div id="slots-loading" style="text-align:center;padding:20px;color:var(--muted)">⏳ Buscando disponibilidad...</div>
       <div id="slots-list" style="display:flex;flex-direction:column;gap:10px;margin:12px 0"></div>
       <p id="slots-err" style="color:var(--obes);font-size:.85rem;display:none"></p>
@@ -3132,7 +3132,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-08-personas-adicionales-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-08-anticipacion-configurable-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
