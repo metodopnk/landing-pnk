@@ -1103,7 +1103,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
       <div class="res-cta">
         <p>Tu resultado está listo. El siguiente paso es hablar con un médico que diseñe tu plan exacto, <strong>sin costo</strong>.</p>
-        <button class="btn-agenda" onclick="abrirModal('calc')" style="font-size:.95rem;padding:13px 26px">
+        <button class="btn-agenda" onclick="abrirModal('barra')" style="font-size:.95rem;padding:13px 26px">
           Agendar mi consulta médica
         </button>
         <p style="font-size:.76rem;color:var(--muted);margin-top:8px">* Cálculo orientativo: IMC objetivo 24 (hombres) y 22,5 (mujeres). Resultados individuales pueden variar.</p>
@@ -3127,7 +3127,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-08-google-tag-manager-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-08-fix-boton-agendar-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
