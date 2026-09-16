@@ -1958,7 +1958,7 @@ async function calcular(){
     document.getElementById('seguimiento-strip').style.display = 'none';
   }
   registrar('calcular');
-  if(window.fbq) fbq('track','Lead',{currency:'UYU',value:0});
+  if(window.fbq) fbq('trackCustom','calc_resultado',{currency:'UYU',value:0});
   document.getElementById('resultado').style.display = 'block';
   document.getElementById('resultado').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
@@ -1994,7 +1994,7 @@ async function calcularRapido(kg){
   mostrarCarousel();
   // Mostrar selector con el kg del botón como "Peso seleccionado" (sin botón IMC)
   mostrarSelectorKg(kg, kg, calc.inversionInicial, calc.desglose);
-  if(window.fbq) fbq('track','Lead',{currency:'UYU',value:0,content_name:'btn_rapido_'+kg});
+  if(window.fbq) fbq('trackCustom','calc_btn_rapido',{currency:'UYU',value:0,content_name:'btn_rapido_'+kg});
   document.getElementById('resultado').style.display = 'block';
   document.getElementById('resultado').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
@@ -2606,7 +2606,7 @@ function enviarAvisaDescuento(){
   );
   window.open(`https://wa.me/${CONFIG.waNum}?text=${msg}`, '_blank');
   registrar('avisa_descuento', {contacto: contacto});
-  if(window.fbq) fbq('track','Lead',{content_name:'aviso_descuento'});
+  if(window.fbq) fbq('trackCustom','calc_aviso_descuento',{content_name:'aviso_descuento'});
   okEl.style.display  = 'block';
   document.getElementById('avisa-contacto').value = '';
   setTimeout(()=>{ okEl.style.display='none'; }, 4000);
@@ -3127,7 +3127,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-08-fix-boton-agendar-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-15-pixel-eventos-limpios-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
@@ -3439,7 +3439,7 @@ async function irAPaso2(){
     try{ localStorage.setItem('pnk_lead',JSON.stringify(lead)); }catch(e){}
     datosPaciente.lead=lead;
     registrar('completo_datos');
-    if(window.fbq) fbq('track','Lead',{currency:'UYU',value:0,content_name:'lead_calc'});
+    if(window.fbq) fbq('trackCustom','calc_uso',{currency:'UYU',value:0,content_name:'lead_calc'});
     cerrarModal(); desbloquearCalculadora();
     if(_modalOrigen==='rapido'&&_kgRapidoPendiente!==null){
       const kg=_kgRapidoPendiente; _kgRapidoPendiente=null;
@@ -3480,7 +3480,7 @@ async function irAPaso2(){
   const lead={nombre,apellido,tel,email:emailAgenda,depto,kgObjetivo:kg_obj,ts:Date.now()};
   try{ localStorage.setItem('pnk_lead',JSON.stringify(lead)); }catch(e){}
   datosPaciente.lead=lead;
-  if(window.fbq) fbq('track','Lead',{currency:'UYU',value:0,content_name:'agenda_paso1'});
+  if(window.fbq) fbq('trackCustom','agenda_paso1',{currency:'UYU',value:0,content_name:'agenda_paso1'});
   _showPaso(1.5);
 }
 
@@ -3679,7 +3679,7 @@ async function confirmarAgenda(){
         `<strong>${_slotElegido.label}</strong><br>
          Médico: ${medicoLabel} · ${tipoLabel}`;
       document.getElementById('btn-pagar-wa').onclick = () => pagarPorWA(data, d);
-      if(window.fbq) fbq('track','Contact',{content_name:'agenda_confirmada'});
+      if(window.fbq) fbq('track','Schedule',{content_name:'agenda_confirmada'});
       _showPaso(3);
     } catch(e) {
       console.error('Error mostrando la confirmación visual (el turno y el registro ya quedaron guardados):', e);
