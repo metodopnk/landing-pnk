@@ -15,10 +15,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <!-- Pixel Meta -->
 <script>
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
-fbq('init','692052512879910');
+fbq('init','1717205340407442');
 fbq('track','PageView');
 </script>
-<noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=692052512879910&ev=PageView&noscript=1" /></noscript>
+<noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1717205340407442&ev=PageView&noscript=1" /></noscript>
 
 <style>
 /* ============================================================
@@ -3127,7 +3127,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-15-pixel-eventos-limpios-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-15-fix-modal-agenda-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
@@ -3274,6 +3274,18 @@ function abrirModal(origen){
   _showPaso(1);
   document.getElementById('modal-bg').classList.add('open');
   document.getElementById('m-nombre').focus();
+  // Restaurar título/subtítulo y mostrar tipo/modalidad/personas — si antes se usó
+  // la calculadora (abrirVentanaLead), estos quedaban con el texto y el layout de
+  // la calculadora pegados, porque esta función no los reseteaba.
+  const title = document.getElementById('modal-title');
+  const sub   = document.getElementById('modal-sub');
+  if(title) title.textContent = 'Agendá tu consulta';
+  if(sub)   sub.textContent   = 'Completá tus datos y elegí el tipo de consulta.';
+  document.getElementById('modal-tipo-wrap').style.display     = 'block';
+  document.getElementById('modal-modalidad-wrap').style.display = 'block';
+  document.getElementById('modal-personas-wrap').style.display  = 'block';
+  const btnSend = document.getElementById('btn-modal-send');
+  if(btnSend) btnSend.textContent = 'Ver horarios disponibles →';
   // Resetear cantidad de personas y acompañantes de una reserva anterior
   _cantidadPersonas = 1;
   _acompanantes = [];
