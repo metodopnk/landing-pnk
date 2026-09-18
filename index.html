@@ -3127,7 +3127,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-17-timeout-calculo-25s-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-18-modalidades-disponibles-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
@@ -3178,10 +3178,47 @@ function setTipo(btn){
 
 // Guarda la modalidad elegida (online/Punta Carretas/Parque Batlle) y marca el botón activo.
 function setModalidad(btn){
+  if(btn.disabled) return;
   _modalidad = btn.dataset.mod;
   document.querySelectorAll('.btn-tipo[data-mod]').forEach(b=>b.classList.remove('activo'));
   btn.classList.add('activo');
   if(_tipoConsulta) pedirPrecioConsulta(_tipoConsulta, _modalidad, _cantidadPersonas); // precargar en caché
+}
+
+// Consulta al backend qué modalidades tienen al menos un médico habilitado en
+// este momento, y deshabilita de entrada el botón de las que no tienen —
+// para no dejar elegir una modalidad sin atención y recién avisar después de
+// buscar horarios.
+let _modalidadesChequeadas = false;
+function cargarModalidadesDisponibles(){
+  if(_modalidadesChequeadas) return; // solo hace falta una vez por carga de página
+  const cbName = 'pnkModDisp_' + Date.now();
+  const params = new URLSearchParams({ action:'modalidadesDisponibles', callback:cbName });
+  const script = document.createElement('script');
+  const timeout = setTimeout(()=>{ delete window[cbName]; if(script.parentNode) script.parentNode.removeChild(script); }, 8000);
+  window[cbName] = function(data){
+    clearTimeout(timeout);
+    delete window[cbName];
+    if(script.parentNode) script.parentNode.removeChild(script);
+    if(!data || data.error) return;
+    _modalidadesChequeadas = true;
+    document.querySelectorAll('#modalidad-btns .btn-tipo[data-mod]').forEach(btn=>{
+      const mod = btn.dataset.mod;
+      if(data[mod] === false){
+        btn.disabled = true;
+        btn.style.opacity = '.45';
+        btn.style.cursor = 'not-allowed';
+        btn.title = 'No hay atención disponible en esta modalidad por ahora';
+        if(!btn.dataset.textoOriginal){
+          btn.dataset.textoOriginal = btn.textContent;
+          btn.textContent = btn.textContent + ' (sin turnos)';
+        }
+      }
+    });
+  };
+  script.onerror = () => { clearTimeout(timeout); delete window[cbName]; };
+  script.src = `${APPS_SCRIPT_URL}?${params.toString()}`;
+  document.head.appendChild(script);
 }
 
 /* ================================================================
@@ -3284,6 +3321,7 @@ function abrirModal(origen){
   document.getElementById('modal-tipo-wrap').style.display     = 'block';
   document.getElementById('modal-modalidad-wrap').style.display = 'block';
   document.getElementById('modal-personas-wrap').style.display  = 'block';
+  cargarModalidadesDisponibles();
   const btnSend = document.getElementById('btn-modal-send');
   if(btnSend) btnSend.textContent = 'Ver horarios disponibles →';
   // Resetear cantidad de personas y acompañantes de una reserva anterior
