@@ -1727,7 +1727,7 @@ function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
       if(script.parentNode) script.parentNode.removeChild(script);
       reportarErrorAlBackend('timeout_calcularPlan', `kg=${kg} imc=${imc}`);
       reject(new Error('Tiempo agotado calculando el plan'));
-    }, 15000);
+    }, 25000);
 
     window[cbName] = function(data){
       clearTimeout(timeout);
@@ -3127,7 +3127,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-15-fix-modal-agenda-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-17-timeout-calculo-25s-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
