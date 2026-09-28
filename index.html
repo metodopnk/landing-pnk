@@ -1715,25 +1715,30 @@ function reportarErrorAlBackend(tipo, detalle){
 // Datos de diagnóstico que viajan en el mail de errores: sirven para distinguir
 // si un timeout viene de una red móvil floja, de un navegador interno de app
 // (Instagram/Facebook), de una pestaña en segundo plano, etc.
-function diagnosticoPedido(kg, imc, intentos, ms){
+function diagnosticoPedido(detalleBase, intentos, ms){
   const ua = navigator.userAgent || '';
   const appInterna = /FBAN|FBAV|FB_IAB|Instagram|TikTok|musical_ly|Line\/|MicroMessenger/i.test(ua) ? 'SI' : 'no';
   const cx = navigator.connection
     ? (navigator.connection.effectiveType || '?') + (navigator.connection.saveData ? '+saveData' : '')
     : 'n/d';
-  return `kg=${kg} imc=${imc} | intentos=${intentos} | ms=${ms} | online=${navigator.onLine} | red=${cx} | appInterna=${appInterna} | pestana=${document.visibilityState} | ua=${ua.slice(0,140)}`;
+  return `${detalleBase} | intentos=${intentos} | ms=${ms} | online=${navigator.onLine} | red=${cx} | appInterna=${appInterna} | pestana=${document.visibilityState} | ua=${ua.slice(0,140)}`;
 }
 
-// Pide el plan al backend. Hace hasta 2 intentos automáticos: si el primero no
-// vuelve en 12s, lanza un segundo sin cortar el primero (si el primero llega
-// tarde igual sirve — gana el que llegue antes). El servidor responde en 1-3s,
-// así que un pedido que tarda mucho más casi siempre es un pedido perdido en
-// el camino, y reintentar rápido rinde más que esperar 25s a uno que no vuelve.
-function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
+// Hace un pedido JSONP al backend con reintentos automáticos. Si un intento no
+// vuelve a tiempo, lanza el siguiente SIN cortar el anterior (si el viejo llega
+// tarde igual sirve: gana el que llegue antes). El servidor responde en 1-4s,
+// así que un pedido que tarda mucho más casi siempre es uno perdido en el camino
+// (red móvil, navegador interno de app, pestaña en segundo plano) y reintentar
+// rápido rinde más que esperar mucho a uno que no vuelve.
+//   construirUrl(cbName) → URL completa del pedido
+//   opts: { prefijo, timeouts:[ms por intento], tipoTimeout, tipoConexion,
+//           detalle, mensajeTimeout, mensajeConexion }
+// Resuelve con la respuesta cruda (data). Si fallan todos los intentos, reporta
+// UN error (con diagnóstico) y rechaza con err.motivo = 'timeout' | 'conexion'.
+function jsonpConReintento(construirUrl, opts){
   return new Promise((resolve, reject) => {
     const inicio = Date.now();
-    const MAX_INTENTOS = 2;
-    const TIMEOUTS_MS = [12000, 18000];
+    const MAX_INTENTOS = opts.timeouts.length;
     let resuelto = false;
     let intento = 0;
     const pendientes = [];
@@ -1747,24 +1752,20 @@ function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
       pendientes.length = 0;
     }
 
-    function fallar(tipo, mensaje){
+    function fallar(tipoReporte, motivo, mensaje){
       if(resuelto) return;
       resuelto = true;
       limpiarTodo();
-      reportarErrorAlBackend(tipo, diagnosticoPedido(kg, imc, intento, Date.now() - inicio));
-      reject(new Error(mensaje));
+      reportarErrorAlBackend(tipoReporte, diagnosticoPedido(opts.detalle, intento, Date.now() - inicio));
+      const err = new Error(mensaje);
+      err.motivo = motivo;
+      reject(err);
     }
 
     function lanzarIntento(){
       intento++;
       const miIntento = intento;
-      const cbName = 'pnkCalc_' + Date.now() + '_' + miIntento + '_' + Math.floor(Math.random()*10000);
-      const params = new URLSearchParams({
-        action: 'calcularPlan',
-        kg: kg || 0, imc: imc || 0,
-        pesoActual: pesoActual || 0, pesoIdeal: pesoIdeal || 0,
-        callback: cbName
-      });
+      const cbName = (opts.prefijo || 'pnkReq') + '_' + Date.now() + '_' + miIntento + '_' + Math.floor(Math.random()*10000);
       const script = document.createElement('script');
       const entrada = { cbName, script, timer: null };
       pendientes.push(entrada);
@@ -1772,15 +1773,13 @@ function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
       entrada.timer = setTimeout(() => {
         if(resuelto) return;
         if(miIntento < MAX_INTENTOS) lanzarIntento(); // este intento sigue "vivo" por si llega tarde
-        else fallar('timeout_calcularPlan', 'Tiempo agotado calculando el plan');
-      }, TIMEOUTS_MS[miIntento - 1]);
+        else fallar(opts.tipoTimeout, 'timeout', opts.mensajeTimeout);
+      }, opts.timeouts[miIntento - 1]);
 
       window[cbName] = function(data){
         if(resuelto) return;
         resuelto = true;
         limpiarTodo();
-        if(data && data.error){ reject(new Error(data.error)); return; }
-        if(data && data.simbolo) _monedaSimbolo = data.simbolo; // moneda configurada en el Sheet
         resolve(data);
       };
 
@@ -1788,16 +1787,39 @@ function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
         if(resuelto) return;
         clearTimeout(entrada.timer);
         if(miIntento !== intento) return; // un intento viejo que falla tarde no importa: hay uno más nuevo en curso
-        console.error('calcularDesdeKg: falló la carga del script (red/CORS), intento ' + miIntento);
+        console.error('jsonpConReintento: falló la carga del script (red/CORS), intento ' + miIntento + ' | ' + opts.detalle);
         if(miIntento < MAX_INTENTOS) lanzarIntento();
-        else fallar('conexion_calcularPlan', 'No se pudo conectar con el servidor de cálculo');
+        else fallar(opts.tipoConexion, 'conexion', opts.mensajeConexion);
       };
 
-      script.src = `${APPS_SCRIPT_URL}?${params.toString()}`;
+      script.src = construirUrl(cbName);
       document.head.appendChild(script);
     }
 
     lanzarIntento();
+  });
+}
+
+function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
+  return jsonpConReintento(
+    cb => `${APPS_SCRIPT_URL}?${new URLSearchParams({
+      action: 'calcularPlan',
+      kg: kg || 0, imc: imc || 0,
+      pesoActual: pesoActual || 0, pesoIdeal: pesoIdeal || 0,
+      callback: cb
+    }).toString()}`,
+    {
+      prefijo: 'pnkCalc',
+      timeouts: [12000, 18000],
+      tipoTimeout: 'timeout_calcularPlan', tipoConexion: 'conexion_calcularPlan',
+      detalle: `kg=${kg} imc=${imc}`,
+      mensajeTimeout: 'Tiempo agotado calculando el plan',
+      mensajeConexion: 'No se pudo conectar con el servidor de cálculo'
+    }
+  ).then(data => {
+    if(data && data.error) throw new Error(data.error);
+    if(data && data.simbolo) _monedaSimbolo = data.simbolo; // moneda configurada en el Sheet
+    return data;
   });
 }
 
@@ -3179,7 +3201,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-28-reintento-calculo-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-28-reintento-horarios-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
@@ -3591,6 +3613,11 @@ function irAPaso1(){ _showPaso(1); }
 
 // Pide al backend los horarios libres (action=getSlots) según la modalidad/tipo/
 // disponibilidad elegidos, y dibuja los botones de turno con lo que responda.
+// Cada búsqueda lleva un número: si el usuario cambia algo (p. ej. "ver más horarios")
+// mientras una búsqueda anterior sigue en camino, la respuesta vieja se descarta
+// para que no pise a la nueva.
+let _slotsReqId = 0;
+
 function cargarSlots(){
   const loading=document.getElementById('slots-loading');
   const list   =document.getElementById('slots-list');
@@ -3601,32 +3628,24 @@ function cargarSlots(){
   const tipo = _tipoConsulta||'evaluacion';
   const disp = _disponibilidad||'flexible';
   const grilla = _disponibilidad==='grilla' ? encodeURIComponent(JSON.stringify(_disponibilidadGrilla)) : '';
+  const reqId = ++_slotsReqId;
 
-  const cbName = 'pnkSlots_' + Date.now();
-  const script  = document.createElement('script');
-
-  const timeout = setTimeout(()=>{
+  const alRecibir = function(data){
+    if(reqId !== _slotsReqId) return; // llegó una respuesta de una búsqueda vieja
     loading.style.display='none';
-    errEl.style.display='block'; errEl.textContent='Tiempo agotado. Coordiná por WhatsApp más abajo.';
-    reportarErrorAlBackend('timeout_getSlots', `modalidad=${mod} tipo=${tipo} disp=${disp}`);
-    delete window[cbName];
-    if(script.parentNode) script.parentNode.removeChild(script);
-  }, 12000);
-
-  window[cbName] = function(data){
-    clearTimeout(timeout);
-    loading.style.display='none';
-    delete window[cbName];
-    if(script.parentNode) script.parentNode.removeChild(script);
     // Ningún médico habilitado para esta modalidad (deshabilitado a mano en la
     // configuración) — ni se buscó en el calendario. Vamos directo a coordinar
     // por WhatsApp con la disponibilidad que ya eligió el cliente.
-    if(data.sinMedicosHabilitados){
+    if(data && data.sinMedicosHabilitados){
+      const donde = mod==='online' ? 'turnos online'
+                  : mod==='punta_carretas' ? 'turnos presenciales en Punta Carretas'
+                  : mod==='parque_batlle' ? 'turnos presenciales en Parque Batlle'
+                  : 'turnos';
       errEl.style.display='block';
-      errEl.textContent='Por este momento no tenemos turnos online por acá. Coordinemos por WhatsApp más abajo, con tu disponibilidad.';
+      errEl.textContent='Por este momento no tenemos '+donde+' por acá. Coordinemos por WhatsApp más abajo, con tu disponibilidad.';
       return;
     }
-    if(data.error||!data.slots||!data.slots.length){
+    if(!data||data.error||!data.slots||!data.slots.length){
       errEl.style.display='block'; errEl.textContent='Sin horarios disponibles. Coordiná por WhatsApp más abajo.';
       return;
     }
@@ -3654,15 +3673,28 @@ function cargarSlots(){
     }
   };
 
-  script.src = `${APPS_SCRIPT_URL}?action=getSlots&medico=cualquiera&modalidad=${encodeURIComponent(mod)}&tipo=${encodeURIComponent(tipo)}&disponibilidad=${encodeURIComponent(disp)}&grilla=${grilla}&callback=${cbName}`;
-  script.onerror = ()=>{
-    clearTimeout(timeout);
+  const alFallar = function(err){
+    if(reqId !== _slotsReqId) return;
     loading.style.display='none';
-    errEl.style.display='block'; errEl.textContent='Error al conectar con el calendario. Coordiná por WhatsApp más abajo.';
-    reportarErrorAlBackend('conexion_getSlots', `modalidad=${mod} tipo=${tipo} disp=${disp}`);
-    delete window[cbName];
+    errEl.style.display='block';
+    errEl.textContent = (err && err.motivo==='timeout')
+      ? 'Tiempo agotado. Coordiná por WhatsApp más abajo.'
+      : 'Error al conectar con el calendario. Coordiná por WhatsApp más abajo.';
   };
-  document.head.appendChild(script);
+
+  // Dos argumentos a then() (y no .catch) a propósito: si algo falla al DIBUJAR los
+  // horarios, no debe confundirse con un error de conexión.
+  jsonpConReintento(
+    cb => `${APPS_SCRIPT_URL}?action=getSlots&medico=cualquiera&modalidad=${encodeURIComponent(mod)}&tipo=${encodeURIComponent(tipo)}&disponibilidad=${encodeURIComponent(disp)}&grilla=${grilla}&callback=${cb}`,
+    {
+      prefijo: 'pnkSlots',
+      timeouts: [12000, 16000],
+      tipoTimeout: 'timeout_getSlots', tipoConexion: 'conexion_getSlots',
+      detalle: `modalidad=${mod} tipo=${tipo} disp=${disp}`,
+      mensajeTimeout: 'Tiempo agotado buscando horarios',
+      mensajeConexion: 'No se pudo conectar con el calendario'
+    }
+  ).then(alRecibir, alFallar);
 }
 
 // Marca el turno elegido, adopta su modalidad si trae una propia (modo 'variado'),
