@@ -1712,40 +1712,92 @@ function reportarErrorAlBackend(tipo, detalle){
   }catch(e){ /* si esto falla, no hay mucho más que hacer */ }
 }
 
+// Datos de diagnóstico que viajan en el mail de errores: sirven para distinguir
+// si un timeout viene de una red móvil floja, de un navegador interno de app
+// (Instagram/Facebook), de una pestaña en segundo plano, etc.
+function diagnosticoPedido(kg, imc, intentos, ms){
+  const ua = navigator.userAgent || '';
+  const appInterna = /FBAN|FBAV|FB_IAB|Instagram|TikTok|musical_ly|Line\/|MicroMessenger/i.test(ua) ? 'SI' : 'no';
+  const cx = navigator.connection
+    ? (navigator.connection.effectiveType || '?') + (navigator.connection.saveData ? '+saveData' : '')
+    : 'n/d';
+  return `kg=${kg} imc=${imc} | intentos=${intentos} | ms=${ms} | online=${navigator.onLine} | red=${cx} | appInterna=${appInterna} | pestana=${document.visibilityState} | ua=${ua.slice(0,140)}`;
+}
+
+// Pide el plan al backend. Hace hasta 2 intentos automáticos: si el primero no
+// vuelve en 12s, lanza un segundo sin cortar el primero (si el primero llega
+// tarde igual sirve — gana el que llegue antes). El servidor responde en 1-3s,
+// así que un pedido que tarda mucho más casi siempre es un pedido perdido en
+// el camino, y reintentar rápido rinde más que esperar 25s a uno que no vuelve.
 function calcularDesdeKg(kg, imc, pesoActual, pesoIdeal){
   return new Promise((resolve, reject) => {
-    const cbName = 'pnkCalc_' + Date.now() + '_' + Math.floor(Math.random()*10000);
-    const params = new URLSearchParams({
-      action: 'calcularPlan',
-      kg: kg || 0, imc: imc || 0,
-      pesoActual: pesoActual || 0, pesoIdeal: pesoIdeal || 0,
-      callback: cbName
-    });
-    const script = document.createElement('script');
-    const timeout = setTimeout(() => {
-      delete window[cbName];
-      if(script.parentNode) script.parentNode.removeChild(script);
-      reportarErrorAlBackend('timeout_calcularPlan', `kg=${kg} imc=${imc}`);
-      reject(new Error('Tiempo agotado calculando el plan'));
-    }, 25000);
+    const inicio = Date.now();
+    const MAX_INTENTOS = 2;
+    const TIMEOUTS_MS = [12000, 18000];
+    let resuelto = false;
+    let intento = 0;
+    const pendientes = [];
 
-    window[cbName] = function(data){
-      clearTimeout(timeout);
-      delete window[cbName];
-      if(script.parentNode) script.parentNode.removeChild(script);
-      if(data && data.error){ reject(new Error(data.error)); return; }
-      if(data && data.simbolo) _monedaSimbolo = data.simbolo; // moneda configurada en el Sheet
-      resolve(data);
-    };
-    script.onerror = () => {
-      clearTimeout(timeout);
-      delete window[cbName];
-      console.error('calcularDesdeKg: falló la carga del script (red/CORS)');
-      reportarErrorAlBackend('conexion_calcularPlan', `kg=${kg} imc=${imc}`);
-      reject(new Error('No se pudo conectar con el servidor de cálculo'));
-    };
-    script.src = `${APPS_SCRIPT_URL}?${params.toString()}`;
-    document.head.appendChild(script);
+    function limpiarTodo(){
+      pendientes.forEach(p => {
+        clearTimeout(p.timer);
+        delete window[p.cbName];
+        if(p.script.parentNode) p.script.parentNode.removeChild(p.script);
+      });
+      pendientes.length = 0;
+    }
+
+    function fallar(tipo, mensaje){
+      if(resuelto) return;
+      resuelto = true;
+      limpiarTodo();
+      reportarErrorAlBackend(tipo, diagnosticoPedido(kg, imc, intento, Date.now() - inicio));
+      reject(new Error(mensaje));
+    }
+
+    function lanzarIntento(){
+      intento++;
+      const miIntento = intento;
+      const cbName = 'pnkCalc_' + Date.now() + '_' + miIntento + '_' + Math.floor(Math.random()*10000);
+      const params = new URLSearchParams({
+        action: 'calcularPlan',
+        kg: kg || 0, imc: imc || 0,
+        pesoActual: pesoActual || 0, pesoIdeal: pesoIdeal || 0,
+        callback: cbName
+      });
+      const script = document.createElement('script');
+      const entrada = { cbName, script, timer: null };
+      pendientes.push(entrada);
+
+      entrada.timer = setTimeout(() => {
+        if(resuelto) return;
+        if(miIntento < MAX_INTENTOS) lanzarIntento(); // este intento sigue "vivo" por si llega tarde
+        else fallar('timeout_calcularPlan', 'Tiempo agotado calculando el plan');
+      }, TIMEOUTS_MS[miIntento - 1]);
+
+      window[cbName] = function(data){
+        if(resuelto) return;
+        resuelto = true;
+        limpiarTodo();
+        if(data && data.error){ reject(new Error(data.error)); return; }
+        if(data && data.simbolo) _monedaSimbolo = data.simbolo; // moneda configurada en el Sheet
+        resolve(data);
+      };
+
+      script.onerror = () => {
+        if(resuelto) return;
+        clearTimeout(entrada.timer);
+        if(miIntento !== intento) return; // un intento viejo que falla tarde no importa: hay uno más nuevo en curso
+        console.error('calcularDesdeKg: falló la carga del script (red/CORS), intento ' + miIntento);
+        if(miIntento < MAX_INTENTOS) lanzarIntento();
+        else fallar('conexion_calcularPlan', 'No se pudo conectar con el servidor de cálculo');
+      };
+
+      script.src = `${APPS_SCRIPT_URL}?${params.toString()}`;
+      document.head.appendChild(script);
+    }
+
+    lanzarIntento();
   });
 }
 
@@ -3127,7 +3179,7 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-09-18-modalidades-disponibles-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-09-28-reintento-calculo-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
