@@ -107,10 +107,14 @@ const PREPARAR_PASO = {
   acceso() { mostrarVistaAcceso('documento'); },
   datos() { completarFormularioDatos(); },
   medico() { PasoMedico.preparar(); },
-  nutri() { pintarCita('nutri-cita-medico', 'medico'); },
+  nutri() { PasoNutri.preparar(); },
   confirmacion() {
     pintarCita('confirmacion-cita-medico', 'medico');
     pintarCita('confirmacion-cita-nutri', 'nutri');
+    const s = estado.seguimiento || {};
+    document.getElementById('confirmacion-pago').hidden = !s.linkComprobante;
+    document.getElementById('confirmacion-pago-precio').textContent = s.precioMedico || '';
+    if (s.linkComprobante) document.getElementById('confirmacion-pago-link').href = s.linkComprobante;
   },
 };
 
@@ -314,7 +318,7 @@ function pintarCita(idContenedor, tipo) {
 
   const lineas = tipo === 'medico'
     ? [s.medico, s.sede, s.tipoConsulta]
-    : ['Lic. Verónica Bitz', s.servicioNutri, s.modalidadNutri];
+    : ['Verónica Bitz', s.servicioNutri, s.modalidadNutri];
 
   const titulo = document.createElement('h3');
   titulo.textContent = tipo === 'medico' ? 'Tu cita con el médico' : 'Tu cita con la nutricionista';
