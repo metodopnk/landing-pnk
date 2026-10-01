@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="es-UY">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agendá tus consultas · Método PnK</title>
+  <meta name="description" content="Reservá tu consulta con el médico y la nutricionista del Método PnK en Uruguay.">
+  <meta name="theme-color" content="#b08d3e">
+  <link rel="icon" href="img/logo-pnk.png">
+  <link rel="stylesheet" href="css/estilos.css?v=1">
+</head>
+<body>
+
+<header class="encabezado">
+  <img class="logo" src="img/logo-pnk.png" alt="Método PnK · Clínica Centenario" width="64" height="64">
+  <div>
+    <h1>Agendá tus consultas</h1>
+    <p>Primero con el médico y después con la nutricionista.</p>
+  </div>
+</header>
+
+<nav class="progreso" aria-label="Progreso de la reserva">
+  <ol>
+    <li data-paso="acceso"><span class="punto" aria-hidden="true">✓</span><span class="etiqueta">Acceso</span></li>
+    <li data-paso="datos"><span class="punto">1</span><span class="etiqueta">Tus datos</span></li>
+    <li data-paso="medico"><span class="punto">2</span><span class="etiqueta">Médico</span></li>
+    <li data-paso="nutri"><span class="punto">3</span><span class="etiqueta">Nutricionista</span></li>
+    <li data-paso="confirmacion"><span class="punto">4</span><span class="etiqueta">Confirmación</span></li>
+  </ol>
+  <p class="progreso-texto" id="progreso-texto" aria-live="polite"></p>
+</nav>
+
+<main>
+  <div class="aviso" id="aviso" role="alert" hidden></div>
+
+  <!-- ACCESO ─────────────────────────────────────────────────────────── -->
+  <section class="tarjeta" id="paso-acceso" data-paso="acceso" hidden>
+    <div id="acceso-documento">
+      <h2 tabindex="-1">Ingresá tu documento</h2>
+      <p class="ayuda">Lo usamos para encontrar tus datos y tus citas.</p>
+      <form id="form-documento" novalidate>
+        <fieldset class="selector">
+          <legend class="visualmente-oculto">Tipo de documento</legend>
+          <label><input type="radio" name="tipoDocumento" value="CI" checked><span>Cédula</span></label>
+          <label><input type="radio" name="tipoDocumento" value="Pasaporte"><span>Pasaporte</span></label>
+        </fieldset>
+        <label class="campo">
+          <span id="documento-etiqueta">Número de cédula</span>
+          <input id="documento" name="documento" inputmode="numeric" autocomplete="off" placeholder="1.234.567-8" required>
+          <small class="error-campo" data-error-de="documento"></small>
+        </label>
+        <button class="boton" type="submit">Continuar</button>
+      </form>
+    </div>
+
+    <div id="acceso-verificacion" hidden>
+      <h2 tabindex="-1">Confirmá que sos vos</h2>
+      <p>Encontramos un registro a nombre de <strong id="mascara-nombre"></strong>
+        con WhatsApp <strong id="mascara-whatsapp"></strong>.</p>
+      <form id="form-verificacion" novalidate>
+        <label class="campo">
+          <span>Últimos 4 números de tu WhatsApp</span>
+          <input id="ultimos4" name="ultimos4" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="••••" class="campo-codigo" required>
+          <small class="error-campo" data-error-de="ultimos4"></small>
+        </label>
+        <button class="boton" type="submit">Verificar</button>
+        <button class="boton-texto" type="button" id="otro-documento">Usar otro documento</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- 1. DATOS ──────────────────────────────────────────────────────── -->
+  <section class="tarjeta" id="paso-datos" data-paso="datos" hidden>
+    <h2 tabindex="-1">Tus datos</h2>
+    <p class="ayuda" id="datos-ayuda"></p>
+    <form id="form-datos" novalidate>
+      <div class="fila-doble">
+        <label class="campo">
+          <span>Nombre</span>
+          <input name="nombre" autocomplete="given-name" required>
+          <small class="error-campo" data-error-de="nombre"></small>
+        </label>
+        <label class="campo">
+          <span>Apellido</span>
+          <input name="apellido" autocomplete="family-name" required>
+          <small class="error-campo" data-error-de="apellido"></small>
+        </label>
+      </div>
+      <label class="campo">
+        <span id="datos-documento-etiqueta">Cédula</span>
+        <input name="documento" readonly>
+      </label>
+      <label class="campo">
+        <span>WhatsApp</span>
+        <input name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="099 123 456" required>
+        <small class="error-campo" data-error-de="whatsapp"></small>
+      </label>
+      <label class="campo">
+        <span>Email</span>
+        <input name="email" type="email" inputmode="email" autocomplete="email" placeholder="tu@email.com" required>
+        <small class="error-campo" data-error-de="email"></small>
+      </label>
+      <button class="boton" type="submit">Continuar con el médico</button>
+    </form>
+  </section>
+
+  <!-- 2. MÉDICO ─────────────────────────────────────────────────────── -->
+  <section class="tarjeta" id="paso-medico" data-paso="medico" hidden>
+    <h2 tabindex="-1">Cita con el médico</h2>
+
+    <p class="cargando-bloque" id="medico-cargando">Cargando la agenda…</p>
+
+    <!-- Ya tiene cita: resumen, pago y botón para seguir -->
+    <div id="medico-agendado" hidden>
+      <p class="ayuda">Tu cita con el médico quedó confirmada. Te enviamos la invitación a tu email.</p>
+      <div class="cita" id="medico-cita"></div>
+      <div class="pago" id="medico-pago" hidden>
+        <p>Valor de la consulta: <strong id="medico-pago-precio"></strong></p>
+        <p class="nota">Para asegurar tu lugar, envianos el comprobante de pago por WhatsApp.</p>
+        <a class="boton secundario" id="medico-pago-link" target="_blank" rel="noopener">Enviar comprobante por WhatsApp</a>
+      </div>
+      <button class="boton" type="button" id="ir-a-nutri">Continuar con la nutricionista</button>
+    </div>
+
+    <!-- Reserva -->
+    <form id="form-medico" novalidate hidden>
+      <fieldset class="grupo">
+        <legend>Tipo de consulta</legend>
+        <div class="opciones" id="opciones-tipo"></div>
+      </fieldset>
+
+      <fieldset class="grupo" id="grupo-medico" hidden>
+        <legend>Médico</legend>
+        <p class="nota" id="nota-medico-fijo" hidden>Agendás con tu médico de siempre.</p>
+        <div class="opciones" id="opciones-medico"></div>
+      </fieldset>
+
+      <fieldset class="grupo" id="grupo-sede" hidden>
+        <legend>¿Dónde?</legend>
+        <div class="opciones" id="opciones-sede"></div>
+        <p class="precio" id="medico-precio" hidden></p>
+      </fieldset>
+
+      <fieldset class="grupo" id="grupo-dia" hidden>
+        <legend>Día</legend>
+        <p class="cargando-bloque" id="dias-cargando" hidden>Buscando horarios libres…</p>
+        <div class="dias" id="opciones-dia"></div>
+        <p class="nota" id="sin-horarios" hidden>No hay horarios libres en las próximas 2 semanas. Probá con otra sede o escribinos por WhatsApp.</p>
+      </fieldset>
+
+      <fieldset class="grupo" id="grupo-hora" hidden>
+        <legend>Hora</legend>
+        <div class="horas" id="opciones-hora"></div>
+      </fieldset>
+
+      <div class="grupo" id="grupo-confirmar" hidden>
+        <label class="compromiso">
+          <input type="checkbox" name="compromisoPago">
+          <span>Me comprometo a abonar la consulta y enviar el comprobante de pago por WhatsApp.</span>
+        </label>
+        <small class="error-campo" data-error-de="compromisoPago"></small>
+        <button class="boton" type="submit">Confirmar cita con el médico</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- 3. NUTRICIONISTA ──────────────────────────────────────────────── -->
+  <section class="tarjeta" id="paso-nutri" data-paso="nutri" hidden>
+    <h2 tabindex="-1">Cita con la nutricionista</h2>
+    <div class="cita" id="nutri-cita-medico"></div>
+    <div class="en-construccion">Este paso se construye en la etapa 3.</div>
+  </section>
+
+  <!-- 4. CONFIRMACIÓN ───────────────────────────────────────────────── -->
+  <section class="tarjeta" id="paso-confirmacion" data-paso="confirmacion" hidden>
+    <h2 tabindex="-1">¡Listo! Tus consultas</h2>
+    <div class="cita" id="confirmacion-cita-medico"></div>
+    <div class="cita" id="confirmacion-cita-nutri"></div>
+  </section>
+</main>
+
+<footer class="pie">
+  <p><strong>Parque Batlle:</strong> Av. Centenario 3090A esq. Luis Alberto de Herrera</p>
+  <p><strong>Punta Carretas:</strong> Manuel Errazquin 2368, planta baja, esq. Rambla Mahatma Gandhi</p>
+</footer>
+
+<script src="js/config.js?v=1"></script>
+<script src="js/validaciones.js?v=1"></script>
+<script src="js/api.js?v=1"></script>
+<script src="js/paso-medico.js?v=1"></script>
+<script src="js/app.js?v=1"></script>
+</body>
+</html>

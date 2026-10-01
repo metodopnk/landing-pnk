@@ -1,0 +1,10 @@
+# .htaccess de la carpeta AgendaMedicoNutri
+DirectoryIndex index.html
+Options -Indexes
+
+# Que los cambios se vean enseguida (los archivos llevan ?v=N en index.html)
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>

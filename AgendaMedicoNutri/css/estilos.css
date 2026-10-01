@@ -1,0 +1,261 @@
+/* ==========================================================================
+   Agenda Médico + Nutri · Método PnK
+   Colores y tipografía tomados de la landing perdidanetadekilos.com.uy.
+   Pensado primero para celular; en pantallas grandes se centra en una columna.
+   ========================================================================== */
+
+:root {
+  --crema: #fffdf8;
+  --blanco: #ffffff;
+  --dorado: #b08d3e;
+  --dorado-oscuro: #8a6c28;
+  --dorado-claro: #f5edd6;
+  --dorado-suave: #faf6ed;
+  --linea: #e8dfc8;
+  --tinta: #1e2228;
+  --gris: #6b7480;
+  --verde: #4a9e70;
+  --rojo: #c23b2b;
+
+  --fuente-titulos: Georgia, "Times New Roman", serif;
+  --fuente-texto: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+
+  --radio: 14px;
+  --sombra: 0 6px 24px rgba(138, 108, 40, 0.10);
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--crema);
+  color: var(--tinta);
+  font-family: var(--fuente-texto);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+h1, h2, h3 { font-family: var(--fuente-titulos); font-weight: normal; line-height: 1.2; margin: 0; }
+h2:focus { outline: none; }
+
+[hidden] { display: none !important; }
+
+.visualmente-oculto {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* ── Encabezado ─────────────────────────────────────────────────────────── */
+
+.encabezado {
+  display: flex; align-items: center; gap: 14px;
+  max-width: 560px; margin: 0 auto; padding: 20px 16px 8px;
+}
+.logo { width: 64px; height: 64px; flex: none; }
+.encabezado h1 { font-size: 1.5rem; color: var(--dorado-oscuro); }
+.encabezado p { margin: 2px 0 0; color: var(--gris); font-size: 0.92rem; }
+
+/* ── Barra de progreso ──────────────────────────────────────────────────── */
+
+.progreso { max-width: 560px; margin: 0 auto; padding: 12px 16px 4px; }
+.progreso ol {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; justify-content: space-between; position: relative;
+}
+.progreso ol::before {           /* la línea que une los puntos */
+  content: ""; position: absolute; left: 14px; right: 14px; top: 13px;
+  height: 2px; background: var(--linea);
+}
+.progreso li {
+  position: relative; display: flex; flex-direction: column; align-items: center;
+  gap: 4px; flex: 1; min-width: 0;
+}
+.progreso li:first-child { align-items: flex-start; }
+.progreso li:last-child { align-items: flex-end; }
+.punto {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--blanco); border: 2px solid var(--linea);
+  color: var(--gris); font-size: 0.8rem; font-weight: 600;
+  transition: background .2s, border-color .2s, color .2s;
+}
+.etiqueta { display: none; font-size: 0.75rem; color: var(--gris); white-space: nowrap; }
+
+.progreso li.hecho .punto { background: var(--dorado-claro); border-color: var(--dorado); color: var(--dorado-oscuro); }
+.progreso li.actual .punto { background: var(--dorado); border-color: var(--dorado); color: var(--blanco); }
+.progreso li.actual .etiqueta { color: var(--tinta); font-weight: 600; }
+
+.progreso-texto { margin: 8px 0 0; text-align: center; font-size: 0.85rem; color: var(--gris); }
+
+@media (min-width: 520px) {
+  .etiqueta { display: block; }
+  .progreso-texto { display: none; }
+}
+
+/* ── Contenido y tarjetas ───────────────────────────────────────────────── */
+
+main { max-width: 560px; margin: 0 auto; padding: 12px 16px 32px; }
+
+.tarjeta {
+  background: var(--blanco); border: 1px solid var(--linea); border-radius: var(--radio);
+  box-shadow: var(--sombra); padding: 22px 18px;
+}
+.tarjeta h2 { font-size: 1.35rem; margin-bottom: 6px; }
+.ayuda { margin: 0 0 18px; color: var(--gris); font-size: 0.95rem; }
+
+.aviso {
+  margin-bottom: 12px; padding: 12px 14px; border-radius: 10px;
+  background: #fbeceb; border: 1px solid #efc4bf; color: var(--rojo); font-size: 0.95rem;
+}
+.aviso.info { background: var(--dorado-suave); border-color: var(--linea); color: var(--dorado-oscuro); }
+
+.en-construccion {
+  margin-top: 12px; padding: 16px; border: 1px dashed var(--linea); border-radius: 10px;
+  color: var(--gris); text-align: center; font-size: 0.9rem;
+}
+
+/* ── Formularios ────────────────────────────────────────────────────────── */
+
+form { display: grid; gap: 14px; }
+fieldset { border: 0; margin: 0; padding: 0; }
+
+.campo { display: grid; gap: 6px; }
+.campo > span { font-size: 0.9rem; font-weight: 600; }
+.campo input, .campo select {
+  width: 100%; min-height: 48px; padding: 10px 14px;
+  font: inherit; font-size: 16px;   /* 16px evita que el iPhone haga zoom */
+  color: var(--tinta); background: var(--blanco);
+  border: 1.5px solid var(--linea); border-radius: 10px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.campo input:focus, .campo select:focus {
+  outline: none; border-color: var(--dorado); box-shadow: 0 0 0 3px var(--dorado-claro);
+}
+.campo input[readonly] { background: var(--dorado-suave); color: var(--gris); }
+.campo input[aria-invalid="true"] { border-color: var(--rojo); }
+.campo-codigo { letter-spacing: 0.5em; text-align: center; font-size: 1.4rem !important; }
+
+.error-campo { color: var(--rojo); font-size: 0.85rem; min-height: 0; }
+.error-campo:empty { display: none; }
+
+.fila-doble { display: grid; gap: 14px; }
+@media (min-width: 420px) { .fila-doble { grid-template-columns: 1fr 1fr; } }
+
+/* Selector de dos opciones (Cédula / Pasaporte) */
+.selector { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1.5px solid var(--linea); border-radius: 10px; overflow: hidden; }
+.selector label { position: relative; }
+.selector input { position: absolute; opacity: 0; inset: 0; }
+.selector span {
+  display: block; padding: 11px 8px; text-align: center; cursor: pointer;
+  font-size: 0.95rem; color: var(--gris); background: var(--blanco);
+}
+.selector input:checked + span { background: var(--dorado-claro); color: var(--dorado-oscuro); font-weight: 600; }
+.selector input:focus-visible + span { box-shadow: inset 0 0 0 2px var(--dorado); }
+
+/* ── Botones ────────────────────────────────────────────────────────────── */
+
+.boton {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: 50px; padding: 12px 20px;
+  font: inherit; font-weight: 600; font-size: 1rem; text-decoration: none;
+  color: var(--blanco); background: var(--dorado);
+  border: 0; border-radius: 999px; cursor: pointer;
+  transition: background .15s, transform .05s;
+}
+.boton:hover { background: var(--dorado-oscuro); }
+.boton:active { transform: translateY(1px); }
+.boton:focus-visible { outline: 3px solid var(--dorado-claro); outline-offset: 2px; }
+.boton[disabled] { opacity: .6; cursor: progress; }
+
+.boton.secundario { background: var(--blanco); color: var(--dorado-oscuro); border: 1.5px solid var(--dorado); }
+.boton.secundario:hover { background: var(--dorado-suave); }
+
+.boton-texto {
+  background: none; border: 0; padding: 8px; font: inherit; font-size: 0.92rem;
+  color: var(--dorado-oscuro); text-decoration: underline; cursor: pointer;
+}
+
+.cargando::after {
+  content: ""; width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.5); border-top-color: var(--blanco);
+  animation: girar .8s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+/* ── Grupos de opciones (paso médico) ───────────────────────────────────── */
+
+.grupo { display: grid; gap: 10px; }
+.grupo legend { font-weight: 600; font-size: 0.95rem; margin-bottom: 10px; padding: 0; }
+.nota { margin: 0; color: var(--gris); font-size: 0.88rem; }
+.cargando-bloque { margin: 8px 0; color: var(--gris); font-size: 0.92rem; }
+
+/* Tarjetas para elegir (tipo, médico, sede) */
+.opciones { display: grid; gap: 8px; }
+@media (min-width: 420px) { .opciones { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
+.opcion { position: relative; display: block; cursor: pointer; }
+.opcion input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.opcion .caja {
+  display: grid; gap: 2px; padding: 12px 14px; min-height: 48px;
+  border: 1.5px solid var(--linea); border-radius: 12px; background: var(--blanco);
+  transition: border-color .15s, background .15s;
+}
+.opcion .titulo { font-weight: 600; }
+.opcion .detalle { font-size: 0.85rem; color: var(--gris); }
+.opcion input:checked + .caja { border-color: var(--dorado); background: var(--dorado-suave); box-shadow: inset 0 0 0 1px var(--dorado); }
+.opcion input:focus-visible + .caja { box-shadow: 0 0 0 3px var(--dorado-claro); }
+
+/* Chips de días (fila que se desliza) y de horas (grilla) */
+.dias {
+  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px;
+  scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+}
+.horas { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
+.chip { position: relative; flex: none; scroll-snap-align: start; }
+.chip input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.chip span {
+  display: grid; place-items: center; min-height: 44px; padding: 6px 12px;
+  border: 1.5px solid var(--linea); border-radius: 10px; background: var(--blanco);
+  font-size: 0.92rem; text-align: center; line-height: 1.2; cursor: pointer;
+}
+.dias .chip span { min-width: 64px; }
+.chip span small { display: block; font-size: 0.72rem; color: var(--gris); text-transform: capitalize; }
+.chip input:checked + span { background: var(--dorado); border-color: var(--dorado); color: var(--blanco); font-weight: 600; }
+.chip input:checked + span small { color: var(--blanco); }
+.chip input:focus-visible + span { box-shadow: 0 0 0 3px var(--dorado-claro); }
+
+.precio { margin: 4px 0 0; font-size: 0.95rem; }
+.precio strong { color: var(--dorado-oscuro); }
+
+.compromiso { display: flex; gap: 10px; align-items: flex-start; font-size: 0.92rem; cursor: pointer; }
+.compromiso input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--dorado); flex: none; }
+
+.pago {
+  display: grid; gap: 8px; margin: 14px 0; padding: 14px 16px;
+  border: 1px solid var(--linea); border-radius: 12px;
+}
+.pago p { margin: 0; }
+
+#form-medico { gap: 22px; }
+#medico-agendado { display: grid; gap: 4px; }
+
+/* ── Tarjeta de cita (resumen) ──────────────────────────────────────────── */
+
+.cita:empty { display: none; }
+.cita {
+  margin: 14px 0; padding: 14px 16px; border-radius: 12px;
+  background: var(--dorado-suave); border: 1px solid var(--linea);
+}
+.cita h3 { font-size: 1.05rem; color: var(--dorado-oscuro); margin-bottom: 6px; }
+.cita p { margin: 2px 0; font-size: 0.95rem; }
+.cita .fecha { font-weight: 600; text-transform: capitalize; }
+
+/* ── Pie ────────────────────────────────────────────────────────────────── */
+
+.pie { max-width: 560px; margin: 0 auto; padding: 0 16px 32px; color: var(--gris); font-size: 0.8rem; }
+.pie p { margin: 4px 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation-duration: 0s !important; }
+}
