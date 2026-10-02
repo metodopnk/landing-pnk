@@ -3201,13 +3201,14 @@ function enviarCalculosWA(){
    ================================================================ */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
-const HTML_VERSION = '2026-10-01-fix-pixel-id-v1'; // debe coincidir con SCRIPT_VERSION del .gs
+const HTML_VERSION = '2026-10-01-idempotencia-reserva-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
 let _kgRapidoPendiente = null;
 let _tipoConsulta = '';
 let _modalidad    = '';
 let _slotElegido    = null;
+let _idempotencyKeyReserva = null; // se genera una sola vez por intento de confirmar, para no duplicar si hay un reintento
 let _disponibilidad = 'flexible';
 let _disponibilidadGrilla = [];
 
@@ -3702,6 +3703,7 @@ function cargarSlots(){
 async function elegirSlot(btn,slot){
   document.querySelectorAll('.slot-btn').forEach(b=>b.classList.remove('elegido'));
   btn.classList.add('elegido'); _slotElegido=slot;
+  _idempotencyKeyReserva = 'pnk_' + Date.now() + '_' + Math.random().toString(36).slice(2); // reserva nueva → key nueva
   // Si el turno trae su propia modalidad (modo 'variado', p.ej. la alternativa presencial↔online),
   // adoptarla para que el agendamiento y los textos usen la modalidad correcta de ESE turno.
   if(slot.modalidad){ _modalidad = slot.modalidad; }
@@ -3772,57 +3774,62 @@ async function confirmarAgenda(){
     tipo:      _tipoConsulta || 'evaluacion',
     precio:    precioConsulta || '',
     cantidadPersonas: _cantidadPersonas,
-    acompanantes: acompanantesJSON
+    acompanantes: acompanantesJSON,
+    idempotencyKey: _idempotencyKeyReserva || ''
   });
 
-  const cbName = 'pnkEvt_' + Date.now();
-  const script  = document.createElement('script');
-
-  const timeout = setTimeout(() => {
-    delete window[cbName];
-    if(script.parentNode) script.parentNode.removeChild(script);
+  // Con idempotencyKey en el pedido, el backend nunca crea un evento/fila
+  // duplicados aunque este pedido se reintente solo — así que ahora sí
+  // podemos reintentar automáticamente, igual que con el cálculo y los
+  // horarios, en vez de caer directo a WhatsApp ante una demora pasajera.
+  let data;
+  try {
+    data = await jsonpConReintento(
+      cb => `${APPS_SCRIPT_URL}?${params.toString()}&callback=${cb}`,
+      {
+        prefijo: 'pnkEvt',
+        timeouts: [20000, 15000],
+        tipoTimeout: 'timeout_createEvent', tipoConexion: 'conexion_createEvent',
+        detalle: `medico=${_slotElegido.medico} inicio=${_slotElegido.inicio}`,
+        mensajeTimeout: 'Tiempo agotado confirmando el turno',
+        mensajeConexion: 'No se pudo conectar para confirmar el turno'
+      }
+    );
+  } catch(e) {
     coordinarPorWA();
-  }, 20000);
+    return;
+  }
 
-  window[cbName] = function(data){
-    clearTimeout(timeout);
-    delete window[cbName];
-    if(script.parentNode) script.parentNode.removeChild(script);
+  if(data.error){ coordinarPorWA(); return; }
 
-    if(data.error){ coordinarPorWA(); return; }
+  // Guardar en Sheets/Calendar-log PRIMERO: si algo de la UI de abajo falla,
+  // el registro del turno no debe perderse (el evento de Calendar ya se creó server-side).
+  const botonOrigen = {hero:'agendar_hero', footer:'agendar_footer', barra:'agendar_barra', calc:'agendar_barra'}[_modalOrigen] || 'agendar_hero';
+  registrar(botonOrigen, {
+    modalidad: _modalidad, tipo: _tipoConsulta,
+    sede, medico: data.medico || '',
+    turno: _slotElegido?.label || '', eventId: data.eventId || data.titulo || '',
+    linkRecordatorioWA: data.linkRecordatorioWA || '',
+    precio: precioConsulta || '',
+    tipoDocumento: _tipoDocumento === 'cedula' ? 'Cédula' : 'Pasaporte',
+    numeroDocumento: document.getElementById('input-documento').value.trim(),
+    cantidadPersonas: _cantidadPersonas,
+    acompanantes: acompanantesJSON,
+    idempotencyKey: _idempotencyKeyReserva || ''
+  });
 
-    // Guardar en Sheets/Calendar-log PRIMERO: si algo de la UI de abajo falla,
-    // el registro del turno no debe perderse (el evento de Calendar ya se creó server-side).
-    const botonOrigen = {hero:'agendar_hero', footer:'agendar_footer', barra:'agendar_barra', calc:'agendar_barra'}[_modalOrigen] || 'agendar_hero';
-    registrar(botonOrigen, {
-      modalidad: _modalidad, tipo: _tipoConsulta,
-      sede, medico: data.medico || '',
-      turno: _slotElegido?.label || '', eventId: data.eventId || data.titulo || '',
-      linkRecordatorioWA: data.linkRecordatorioWA || '',
-      precio: precioConsulta || '',
-      tipoDocumento: _tipoDocumento === 'cedula' ? 'Cédula' : 'Pasaporte',
-      numeroDocumento: document.getElementById('input-documento').value.trim(),
-      cantidadPersonas: _cantidadPersonas,
-      acompanantes: acompanantesJSON
-    });
-
-    try {
-      const tipoLabel = {'evaluacion':'Evaluación inicial','seguimiento':'Seguimiento','reinicio':'Reinicio'}[_tipoConsulta] || 'Consulta';
-      const medicoLabel = _slotElegido.medico === 'Villanoba' ? 'Dr. Villanoba' : 'Dra. Machado';
-      document.getElementById('modal-ok-msg').innerHTML =
-        `<strong>${_slotElegido.label}</strong><br>
-         Médico: ${medicoLabel} · ${tipoLabel}`;
-      document.getElementById('btn-pagar-wa').onclick = () => pagarPorWA(data, d);
-      if(window.fbq) fbq('track','Schedule',{content_name:'agenda_confirmada'});
-      _showPaso(3);
-    } catch(e) {
-      console.error('Error mostrando la confirmación visual (el turno y el registro ya quedaron guardados):', e);
-    }
-  };
-
-  script.src = `${APPS_SCRIPT_URL}?${params.toString()}&callback=${cbName}`;
-  script.onerror = () => { clearTimeout(timeout); delete window[cbName]; coordinarPorWA(); };
-  document.head.appendChild(script);
+  try {
+    const tipoLabel = {'evaluacion':'Evaluación inicial','seguimiento':'Seguimiento','reinicio':'Reinicio'}[_tipoConsulta] || 'Consulta';
+    const medicoLabel = _slotElegido.medico === 'Villanoba' ? 'Dr. Villanoba' : 'Dra. Machado';
+    document.getElementById('modal-ok-msg').innerHTML =
+      `<strong>${_slotElegido.label}</strong><br>
+       Médico: ${medicoLabel} · ${tipoLabel}`;
+    document.getElementById('btn-pagar-wa').onclick = () => pagarPorWA(data, d);
+    if(window.fbq) fbq('track','Schedule',{content_name:'agenda_confirmada'});
+    _showPaso(3);
+  } catch(e) {
+    console.error('Error mostrando la confirmación visual (el turno y el registro ya quedaron guardados):', e);
+  }
 }
 
 // Arma y abre un mensaje de WhatsApp para que el paciente pague la consulta agendada.
