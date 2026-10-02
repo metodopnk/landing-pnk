@@ -17,14 +17,41 @@ const Api = {
       });
       respuesta = await pedido.json();
     } catch (e) {
-      throw new Error('No pudimos conectarnos. Revisá tu conexión a internet y probá de nuevo.');
+      const error = new Error('No pudimos conectarnos. Revisá tu conexión a internet y probá de nuevo.');
+      error.stack = 'Acción "' + accion + '" sin respuesta válida del backend: ' + (e && e.message);
+      throw error;
     }
 
     if (!respuesta.ok) {
       const error = new Error(respuesta.error);
       error.codigo = respuesta.codigo;
+      error.delBackend = true;   // el backend ya lo reportó si correspondía
       throw error;
     }
     return respuesta.datos;
   },
+
+  /** Manda al backend un error que pasó en el navegador (llega por email a PNK). */
+  reportarError(donde, error, extra) {
+    if (!CONFIG.API_URL) return;
+    try {
+      fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ accion: 'reportarError', datos: Object.assign({
+          donde: donde,
+          mensaje: String(error && error.message || error),
+          detalle: String(error && error.stack || ''),
+          paso: typeof estado !== 'undefined' ? estado.paso : '',
+          navegador: navigator.userAgent,
+          url: location.href,
+        }, extra || {}) }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch (e) { /* reportar nunca debe romper la página */ }
+  },
 };
+
+// Errores de programación en la página: se reportan solos.
+window.addEventListener('error', e => Api.reportarError('error en la página', e.error || e.message));
+window.addEventListener('unhandledrejection', e => Api.reportarError('promesa sin manejar', e.reason));

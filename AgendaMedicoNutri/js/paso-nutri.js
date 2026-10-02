@@ -102,7 +102,7 @@ const PasoNutri = (() => {
       pintarDias();
     } catch (error) {
       if (numero !== pedidoActual) return;
-      if (error.codigo === 'BOOKINGS_NO_DISPONIBLE') mostrarError();
+      if (error.codigo === 'BOOKINGS_NO_DISPONIBLE') mostrarError(error.message);
       else manejarError(error);
     } finally {
       if (numero === pedidoActual) $('dias-nutri-cargando').hidden = true;
@@ -160,16 +160,20 @@ const PasoNutri = (() => {
         mostrarAviso(error.message);
         if (opciones.turnos) opciones.turnos = null;   // los horarios guardados ya no sirven
         cargarDias();
-      } else if (error.codigo === 'BOOKINGS_NO_DISPONIBLE') {
-        mostrarError();
+      } else if (error.codigo === 'RESERVA_NUTRI_FALLO' || error.codigo === 'BOOKINGS_NO_DISPONIBLE') {
+        // Se queda en el formulario con lo elegido, para reintentar con un toque.
+        mostrarAviso(error.message);
+      } else if (error.codigo === 'YA_TIENE_NUTRI') {
+        mostrarAviso(error.message, 'info');
       } else {
         manejarError(error);
       }
     }
   });
 
-  /** Si Bookings no responde: aviso propio, nunca la página de Bookings. */
-  function mostrarError() {
+  /** Si Bookings no responde al buscar horarios: aviso propio, nunca la página de Bookings. */
+  function mostrarError(mensaje) {
+    if (mensaje) $('nutri-error-mensaje').textContent = mensaje;
     vista('nutri-error');
   }
 

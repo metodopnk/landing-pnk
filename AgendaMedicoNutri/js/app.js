@@ -158,6 +158,7 @@ async function conCarga(boton, tarea, textoEspera) {
 
 /** Errores que mandan de vuelta al inicio. */
 function manejarError(error) {
+  if (!error.delBackend) Api.reportarError('paso ' + estado.paso, error);
   if (error.codigo === 'SESION_VENCIDA') {
     reiniciar();
     irA('acceso');
