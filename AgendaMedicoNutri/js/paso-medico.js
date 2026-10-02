@@ -113,7 +113,9 @@ const PasoMedico = (() => {
     form.hidden = true;
     $('medico-agendado').hidden = false;
     pintarCita('medico-cita', 'medico');
+    pintarCita('medico-cita-control', 'control');
     const s = estado.seguimiento || {};
+    $('medico-control-sin-lugar').hidden = !/^Sin lugar/.test(s.controlAutomatico || '');
     $('medico-pago').hidden = !s.linkComprobante;
     $('medico-pago-precio').textContent = s.precioMedico || '';
     if (s.linkComprobante) $('medico-pago-link').href = s.linkComprobante;
@@ -152,6 +154,14 @@ const PasoMedico = (() => {
     const fuerte = document.createElement('strong');
     fuerte.textContent = '$ ' + formatoNumero.format(precio);
     $('medico-precio').append(fuerte);
+  }
+
+  /** Precio del control (Seguimiento) en la sede elegida, junto a la casilla. */
+  function mostrarPrecioControl() {
+    const seguimiento = opciones.tipos.find(t => t.id === 'seguimiento');
+    const precio = seguimiento && seguimiento.precios &&
+      seguimiento.precios[elegido('sede') === 'Online' ? 'online' : 'presencial'];
+    $('control-precio').textContent = precio ? 'Valor del control: $ ' + formatoNumero.format(precio) : '';
   }
 
   async function cargarDias() {
@@ -199,7 +209,7 @@ const PasoMedico = (() => {
       case 'medico': borrarDesde('sede'); pintarSedes(); break;
       case 'sede': borrarDesde('dia'); mostrarPrecio(); cargarDias(); break;
       case 'dia': borrarDesde('hora'); pintarHoras(); break;
-      case 'hora': $('grupo-confirmar').hidden = false; break;
+      case 'hora': $('grupo-confirmar').hidden = false; mostrarPrecioControl(); break;
       case 'compromisoPago': errorDeCampo(form, 'compromisoPago', ''); break;
     }
   });
@@ -221,6 +231,7 @@ const PasoMedico = (() => {
         fecha: elegido('dia'),
         hora: elegido('hora'),
         compromisoPago: true,
+        agendarControl: form.elements.agendarControl.checked,
       }, estado.token));
       estado.seguimiento = r.seguimiento;
       guardar();

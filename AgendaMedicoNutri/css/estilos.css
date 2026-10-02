@@ -287,3 +287,10 @@ fieldset { border: 0; margin: 0; padding: 0; }
 .espera-icono { font-size: 2rem; }
 
 .abrir-bookings.boton-texto { text-align: center; }
+
+.opcion-control {
+  padding: 12px 14px; border-radius: 12px;
+  background: var(--dorado-suave); border: 1px solid var(--linea);
+}
+.opcion-control small { display: block; margin-top: 4px; }
+.cita .nota { margin-top: 6px; }

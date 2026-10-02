@@ -7,7 +7,7 @@
   <meta name="description" content="Reservá tu consulta con el médico y la nutricionista del Método PnK en Uruguay.">
   <meta name="theme-color" content="#b08d3e">
   <link rel="icon" href="img/logo-pnk.png">
-  <link rel="stylesheet" href="css/estilos.css?v=2">
+  <link rel="stylesheet" href="css/estilos.css?v=3">
 </head>
 <body>
 
@@ -114,6 +114,8 @@
     <div id="medico-agendado" hidden>
       <p class="ayuda">Tu cita con el médico quedó confirmada. Te enviamos la invitación a tu email.</p>
       <div class="cita" id="medico-cita"></div>
+      <div class="cita" id="medico-cita-control"></div>
+      <p class="nota" id="medico-control-sin-lugar" hidden>No encontramos lugar para tu control a los 15 días. Te escribimos por WhatsApp para coordinarlo.</p>
       <div class="pago" id="medico-pago" hidden>
         <p>Valor de la consulta: <strong id="medico-pago-precio"></strong></p>
         <p class="nota">Para asegurar tu lugar, envianos el comprobante de pago por WhatsApp.</p>
@@ -154,6 +156,12 @@
       </fieldset>
 
       <div class="grupo" id="grupo-confirmar" hidden>
+        <label class="compromiso opcion-control">
+          <input type="checkbox" name="agendarControl">
+          <span><strong>Dejar agendado mi próximo control</strong> (Seguimiento, 30 min) 15 días después,
+            a la misma hora o la más cercana, y la nutricionista al día siguiente.
+            <small class="nota" id="control-precio"></small></span>
+        </label>
         <label class="compromiso">
           <input type="checkbox" name="compromisoPago">
           <span>Me comprometo a abonar la consulta y enviar el comprobante de pago por WhatsApp.</span>
@@ -238,6 +246,8 @@
     <p class="ayuda">Te esperamos. Te mandamos la invitación de la consulta médica a tu email.</p>
     <div class="cita" id="confirmacion-cita-medico"></div>
     <div class="cita" id="confirmacion-cita-nutri"></div>
+    <div class="cita" id="confirmacion-cita-control"></div>
+    <div class="cita" id="confirmacion-cita-nutri-control"></div>
     <div class="pago" id="confirmacion-pago" hidden>
       <p>Valor de la consulta médica: <strong id="confirmacion-pago-precio"></strong></p>
       <p class="nota">Si todavía no lo hiciste, envianos el comprobante de pago por WhatsApp.</p>
@@ -252,11 +262,11 @@
   <p><strong>Punta Carretas:</strong> Manuel Errazquin 2368, planta baja, esq. Rambla Mahatma Gandhi</p>
 </footer>
 
-<script src="js/config.js?v=2"></script>
-<script src="js/validaciones.js?v=2"></script>
-<script src="js/api.js?v=2"></script>
-<script src="js/paso-medico.js?v=2"></script>
-<script src="js/paso-nutri.js?v=2"></script>
-<script src="js/app.js?v=2"></script>
+<script src="js/config.js?v=3"></script>
+<script src="js/validaciones.js?v=3"></script>
+<script src="js/api.js?v=3"></script>
+<script src="js/paso-medico.js?v=3"></script>
+<script src="js/paso-nutri.js?v=3"></script>
+<script src="js/app.js?v=3"></script>
 </body>
 </html>

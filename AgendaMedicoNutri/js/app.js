@@ -45,7 +45,7 @@ function reiniciar() {
 // Si las dos ya pasaron, el cliente puede agendar un ciclo nuevo.
 const enElFuturo = iso => Boolean(iso) && new Date(iso).getTime() > Date.now();
 const cicloActivo = () => Boolean(estado.seguimiento) &&
-  (enElFuturo(estado.seguimiento.fechaMedico) || enElFuturo(estado.seguimiento.fechaNutri));
+  ['fechaMedico', 'fechaNutri', 'fechaControl', 'fechaNutriControl'].some(k => enElFuturo(estado.seguimiento[k]));
 const tieneCitaMedica = () => cicloActivo() && Boolean(estado.seguimiento.fechaMedico);
 const tieneCitaNutri = () => cicloActivo() && Boolean(estado.seguimiento.fechaNutri);
 
@@ -111,6 +111,8 @@ const PREPARAR_PASO = {
   confirmacion() {
     pintarCita('confirmacion-cita-medico', 'medico');
     pintarCita('confirmacion-cita-nutri', 'nutri');
+    pintarCita('confirmacion-cita-control', 'control');
+    pintarCita('confirmacion-cita-nutri-control', 'nutriControl');
     const s = estado.seguimiento || {};
     document.getElementById('confirmacion-pago').hidden = !s.linkComprobante;
     document.getElementById('confirmacion-pago-precio').textContent = s.precioMedico || '';
@@ -309,40 +311,54 @@ const formatoFecha = new Intl.DateTimeFormat('es-UY', {
   timeZone: CONFIG.ZONA_HORARIA, weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
 });
 
+/** Datos de cada tipo de tarjeta de cita. */
+const TARJETAS_CITA = {
+  medico: s => ({
+    titulo: 'Tu cita con el médico', fecha: s.fechaMedico, meet: s.linkMeet,
+    lineas: [s.medico, s.sede, s.tipoConsulta],
+  }),
+  nutri: s => ({
+    titulo: 'Tu cita con la nutricionista', fecha: s.fechaNutri,
+    lineas: ['Verónica Bitz', s.servicioNutri, s.modalidadNutri],
+  }),
+  control: s => ({
+    titulo: 'Tu control con el médico', fecha: s.fechaControl, meet: s.linkMeetControl,
+    lineas: [s.medico, s.sede, 'Seguimiento (control a 15 días)'],
+  }),
+  nutriControl: s => ({
+    titulo: 'Tu control con la nutricionista', fecha: s.fechaNutriControl,
+    lineas: ['Verónica Bitz', s.servicioNutriControl],
+    nota: 'Te confirmamos este horario por WhatsApp.',
+  }),
+};
+
 function pintarCita(idContenedor, tipo) {
   const contenedor = document.getElementById(idContenedor);
   contenedor.replaceChildren();
-  const s = estado.seguimiento;
-  const fecha = s && (tipo === 'medico' ? s.fechaMedico : s.fechaNutri);
-  if (!fecha) return;
+  if (!estado.seguimiento) return;
+  const cita = TARJETAS_CITA[tipo](estado.seguimiento);
+  if (!cita.fecha) return;
 
-  const lineas = tipo === 'medico'
-    ? [s.medico, s.sede, s.tipoConsulta]
-    : ['Verónica Bitz', s.servicioNutri, s.modalidadNutri];
+  const agregar = (etiqueta, texto, clase) => {
+    const el = document.createElement(etiqueta);
+    el.textContent = texto;
+    if (clase) el.className = clase;
+    contenedor.append(el);
+    return el;
+  };
+  agregar('h3', cita.titulo);
+  agregar('p', formatoFecha.format(new Date(cita.fecha)) + ' h', 'fecha');
+  cita.lineas.filter(Boolean).forEach(texto => agregar('p', texto));
 
-  const titulo = document.createElement('h3');
-  titulo.textContent = tipo === 'medico' ? 'Tu cita con el médico' : 'Tu cita con la nutricionista';
-  const cuando = document.createElement('p');
-  cuando.className = 'fecha';
-  cuando.textContent = formatoFecha.format(new Date(fecha)) + ' h';
-  contenedor.append(titulo, cuando);
-
-  lineas.filter(Boolean).forEach(texto => {
-    const p = document.createElement('p');
-    p.textContent = texto;
-    contenedor.append(p);
-  });
-
-  if (tipo === 'medico' && s.linkMeet) {
-    const p = document.createElement('p');
+  if (cita.meet) {
     const a = document.createElement('a');
-    a.href = s.linkMeet;
+    a.href = cita.meet;
     a.target = '_blank';
     a.rel = 'noopener';
     a.textContent = 'Link de la videollamada';
-    p.append(a);
-    contenedor.append(p);
+    agregar('p', '').append(a);
   }
+  if (cita.nota) agregar('p', cita.nota, 'nota');
 }
 
 // ─── Arranque ──────────────────────────────────────────────────────────────
