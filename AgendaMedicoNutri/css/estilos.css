@@ -264,29 +264,10 @@ fieldset { border: 0; margin: 0; padding: 0; }
 
 .pila { display: grid; gap: 12px; }
 
-.instrucciones { margin: 4px 0; padding-left: 20px; display: grid; gap: 10px; font-size: 0.95rem; }
-.instrucciones li::marker { color: var(--dorado); font-weight: 700; }
-
-.dato {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  margin-top: 6px; padding: 6px 6px 6px 12px; border-radius: 10px;
-  background: var(--dorado-suave); border: 1px solid var(--linea);
-  overflow-wrap: anywhere;
-}
-.copiar {
-  flex: none; padding: 6px 12px; border-radius: 999px; cursor: pointer;
-  font: inherit; font-size: 0.82rem; font-weight: 600;
-  color: var(--dorado-oscuro); background: var(--blanco); border: 1px solid var(--dorado);
-}
-
-.bookings { border: 1px solid var(--linea); border-radius: 12px; overflow: hidden; background: var(--blanco); }
-.bookings iframe { display: block; width: 100%; height: 75vh; min-height: 560px; border: 0; }
-
 .espera { text-align: center; padding: 18px 8px; border: 1px dashed var(--linea); border-radius: 12px; }
 .espera p { margin: 4px 0; }
 .espera-icono { font-size: 2rem; }
 
-.abrir-bookings.boton-texto { text-align: center; }
 
 .opcion-control {
   padding: 12px 14px; border-radius: 12px;

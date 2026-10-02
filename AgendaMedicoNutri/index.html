@@ -7,7 +7,7 @@
   <meta name="description" content="Reservá tu consulta con el médico y la nutricionista del Método PnK en Uruguay.">
   <meta name="theme-color" content="#b08d3e">
   <link rel="icon" href="img/logo-pnk.png">
-  <link rel="stylesheet" href="css/estilos.css?v=4">
+  <link rel="stylesheet" href="css/estilos.css?v=5">
 </head>
 <body>
 
@@ -213,58 +213,16 @@
       </div>
     </form>
 
-    <!-- Instrucciones + agenda de Bookings -->
-    <div id="nutri-reservar" class="pila" hidden>
-      <ol class="instrucciones">
-        <li>En la agenda de <strong>Verónica Bitz</strong> reservá un horario <strong>posterior a tu cita con el médico</strong>:
-          <span id="nutri-desde"></span></li>
-        <li>Usá <strong>el mismo nombre y email</strong>:
-          <span class="dato"><span id="nutri-nombre"></span><button type="button" class="copiar" data-copiar="nutri-nombre">Copiar</button></span>
-          <span class="dato"><span id="nutri-email"></span><button type="button" class="copiar" data-copiar="nutri-email">Copiar</button></span></li>
-        <li>Cuando termines, volvé acá y tocá <strong>"Ya reservé con la nutricionista"</strong>.</li>
-      </ol>
-      <div class="bookings">
-        <iframe id="bookings-iframe" title="Agenda de la nutricionista (Microsoft Bookings)" loading="lazy"></iframe>
-      </div>
-      <a class="boton secundario abrir-bookings" target="_blank" rel="noopener">¿No ves la agenda? Abrila en una pestaña nueva</a>
-      <button class="boton ya-reserve" type="button">Ya reservé con la nutricionista</button>
-    </div>
-
-    <!-- Pantalla de espera cuando Bookings se abrió en otra pestaña -->
-    <div id="nutri-espera" class="pila" hidden>
+    <!-- Si la agenda de Verónica no responde (nunca se muestra Bookings) -->
+    <div id="nutri-error" class="pila" hidden>
       <div class="espera">
         <p class="espera-icono" aria-hidden="true">⏳</p>
-        <p><strong>Abrimos la agenda de la nutricionista en otra pestaña.</strong></p>
-        <p class="nota">Reservá ahí con tu mismo nombre y email, y después volvé a esta pestaña.</p>
+        <p><strong>No pudimos consultar la agenda de la nutricionista en este momento.</strong></p>
+        <p class="nota">Probá de nuevo en unos minutos. Tu cita con el médico ya está confirmada.</p>
       </div>
-      <button class="boton ya-reserve" type="button">Ya reservé con la nutricionista</button>
-      <a class="boton-texto abrir-bookings" target="_blank" rel="noopener">Volver a abrir la agenda</a>
+      <button class="boton" type="button" id="nutri-reintentar">Probar de nuevo</button>
+      <a class="boton secundario" href="https://wa.me/59893365668" target="_blank" rel="noopener">Escribinos por WhatsApp</a>
     </div>
-
-    <!-- El cliente declara lo que reservó -->
-    <form id="form-nutri" novalidate hidden>
-      <p class="ayuda">Contanos qué reservaste en la agenda de la nutricionista.</p>
-      <label class="campo">
-        <span>Servicio</span>
-        <select name="servicio" required><option value="">Elegí el servicio…</option></select>
-        <small class="error-campo" data-error-de="servicio"></small>
-      </label>
-      <div class="fila-doble">
-        <label class="campo">
-          <span>Día</span>
-          <input type="date" name="fecha" required>
-          <small class="error-campo" data-error-de="fecha"></small>
-        </label>
-        <label class="campo">
-          <span>Hora</span>
-          <input type="time" name="hora" step="300" required>
-          <small class="error-campo" data-error-de="hora"></small>
-        </label>
-      </div>
-      <div class="aviso" id="nutri-regla" role="alert" hidden></div>
-      <button class="boton" type="submit">Guardar mi cita con la nutricionista</button>
-      <button class="boton-texto" type="button" id="nutri-volver">Volver a la agenda</button>
-    </form>
 
     <!-- Ya registrada -->
     <div id="nutri-registrada" class="pila" hidden>
@@ -296,11 +254,11 @@
   <p><strong>Punta Carretas:</strong> Manuel Errazquin 2368, planta baja, esq. Rambla Mahatma Gandhi</p>
 </footer>
 
-<script src="js/config.js?v=4"></script>
-<script src="js/validaciones.js?v=4"></script>
-<script src="js/api.js?v=4"></script>
-<script src="js/paso-medico.js?v=4"></script>
-<script src="js/paso-nutri.js?v=4"></script>
-<script src="js/app.js?v=4"></script>
+<script src="js/config.js?v=5"></script>
+<script src="js/validaciones.js?v=5"></script>
+<script src="js/api.js?v=5"></script>
+<script src="js/paso-medico.js?v=5"></script>
+<script src="js/paso-nutri.js?v=5"></script>
+<script src="js/app.js?v=5"></script>
 </body>
 </html>
