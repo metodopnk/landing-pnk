@@ -23,39 +23,6 @@ const PasoMedico = (() => {
     return marcado ? marcado.value : '';
   };
 
-  /** Crea una opción elegible: tarjeta (tipo, médico, sede) o chip (día, hora). */
-  function crearOpcion(nombre, valor, titulo, detalle, estilo) {
-    const label = document.createElement('label');
-    label.className = estilo === 'chip' ? 'chip' : 'opcion';
-    const input = document.createElement('input');
-    input.type = 'radio';
-    input.name = nombre;
-    input.value = valor;
-    const caja = document.createElement('span');
-    if (estilo === 'chip') {
-      caja.append(titulo);
-      if (detalle) {
-        const small = document.createElement('small');
-        small.textContent = detalle;
-        caja.append(small);
-      }
-    } else {
-      caja.className = 'caja';
-      const t = document.createElement('span');
-      t.className = 'titulo';
-      t.textContent = titulo;
-      caja.append(t);
-      if (detalle) {
-        const d = document.createElement('span');
-        d.className = 'detalle';
-        d.textContent = detalle;
-        caja.append(d);
-      }
-    }
-    label.append(input, caja);
-    return label;
-  }
-
   function elegirUnicaOpcion(contenedor) {
     const inputs = contenedor.querySelectorAll('input');
     if (inputs.length === 1) {

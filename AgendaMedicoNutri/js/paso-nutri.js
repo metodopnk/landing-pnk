@@ -1,26 +1,37 @@
 /**
  * paso-nutri.js — Paso 3: la cita con la nutricionista.
  *
- * El cliente reserva en Microsoft Bookings (embebido, o en otra pestaña) y
- * después nos dice qué servicio, día y hora eligió. Si es antes de que
- * termine su cita médica (o sin la hora de traslado entre sedes), se avisa y
- * no se deja guardar. El backend vuelve a controlar lo mismo.
- * Usa funciones de app.js (estado, Api, irA, pintarCita...).
+ * Modo normal ("bookings"): el cliente elige servicio → día → hora con
+ * nuestros botones (horarios reales del Bookings de Verónica, posteriores a su
+ * cita médica), acepta el tratamiento de datos de Pronokal y se reserva solo.
+ *
+ * Modo de respaldo ("manual"): si Bookings no responde, se muestra la agenda de
+ * Bookings (embebida o en otra pestaña) y el cliente nos dice qué reservó.
+ * Usa funciones de app.js (estado, Api, irA, pintarCita, crearOpcion...).
  */
 const PasoNutri = (() => {
   const $ = id => document.getElementById(id);
-  const form = $('form-nutri');
-  const VISTAS = ['nutri-cargando', 'nutri-reservar', 'nutri-espera', 'form-nutri', 'nutri-registrada'];
+  const form = $('form-nutri');                 // respaldo: "¿qué reservaste?"
+  const formTurnos = $('form-turnos-nutri');    // normal: nuestros botones
+  const VISTAS = ['nutri-cargando', 'form-turnos-nutri', 'nutri-reservar', 'nutri-espera', 'form-nutri', 'nutri-registrada'];
   let opciones = null;
+  let dias = [];
+  let pedidoActual = 0;
 
   const formatoDesde = new Intl.DateTimeFormat('es-UY', {
     timeZone: CONFIG.ZONA_HORARIA, weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
   });
   const formatoHora = new Intl.DateTimeFormat('es-UY', { timeZone: CONFIG.ZONA_HORARIA, hour: '2-digit', minute: '2-digit' });
+  const formatoDia = new Intl.DateTimeFormat('es-UY', { timeZone: 'UTC', weekday: 'short', month: 'short' });
 
   function vista(id) {
     VISTAS.forEach(v => { $(v).hidden = v !== id; });
   }
+
+  const elegido = nombre => {
+    const marcado = formTurnos.querySelector('input[name="' + nombre + '"]:checked');
+    return marcado ? marcado.value : '';
+  };
 
   /** "2026-10-06" + "10:30" → fecha real (Uruguay está en UTC-3 todo el año). */
   const fechaUruguay = (fecha, hora) => new Date(fecha + 'T' + hora + ':00-03:00');
@@ -33,7 +44,9 @@ const PasoNutri = (() => {
       pintarCita('nutri-cita-nutri', 'nutri');
       return vista('nutri-registrada');
     }
-    if (await cargarOpciones()) vista('nutri-reservar');
+    if (!(await cargarOpciones())) return;
+    if (opciones.modo === 'bookings') mostrarTurnos();
+    else vista('nutri-reservar');
   }
 
   async function cargarOpciones() {
@@ -50,7 +63,110 @@ const PasoNutri = (() => {
       }
       return false;
     }
+    prepararRespaldo();
+    return true;
+  }
 
+  // ─── Modo normal: nuestros botones ───────────────────────────────────────
+
+  function mostrarTurnos() {
+    formTurnos.reset();
+    ['grupo-dia-nutri', 'grupo-hora-nutri', 'grupo-confirmar-nutri'].forEach(id => { $(id).hidden = true; });
+    $('opciones-servicio-nutri').replaceChildren(...opciones.servicios.map(s =>
+      crearOpcion('servicioNutri', s.nombre, s.nombre,
+        s.duracion + ' min · ' + (s.modalidad === 'Telefónica' ? 'por teléfono' : 'presencial en Punta Carretas'))));
+    vista('form-turnos-nutri');
+  }
+
+  async function cargarDias() {
+    $('grupo-dia-nutri').hidden = false;
+    $('grupo-hora-nutri').hidden = true;
+    $('grupo-confirmar-nutri').hidden = true;
+    $('opciones-dia-nutri').replaceChildren();
+    $('sin-horarios-nutri').hidden = true;
+    $('dias-nutri-cargando').hidden = false;
+    const numero = ++pedidoActual;
+    try {
+      const r = await Api.llamar('horariosNutri', { servicio: elegido('servicioNutri') }, estado.token);
+      if (numero !== pedidoActual) return;   // el cliente ya cambió de servicio
+      dias = r.dias;
+      pintarDias();
+    } catch (error) {
+      if (numero !== pedidoActual) return;
+      if (error.codigo === 'BOOKINGS_NO_DISPONIBLE') pasarARespaldo(error.message);
+      else manejarError(error);
+    } finally {
+      if (numero === pedidoActual) $('dias-nutri-cargando').hidden = true;
+    }
+  }
+
+  function pintarDias() {
+    $('sin-horarios-nutri').hidden = dias.length > 0;
+    $('opciones-dia-nutri').replaceChildren(...dias.map(d => {
+      const fecha = new Date(d.fecha + 'T12:00:00Z');
+      return crearOpcion('diaNutri', d.fecha, String(fecha.getUTCDate()), formatoDia.format(fecha).replace('.', ''), 'chip');
+    }));
+    const primero = $('opciones-dia-nutri').querySelector('input');
+    if (primero) {
+      primero.checked = true;
+      pintarHoras();
+    }
+  }
+
+  function pintarHoras() {
+    const dia = dias.find(d => d.fecha === elegido('diaNutri'));
+    $('grupo-hora-nutri').hidden = false;
+    $('grupo-confirmar-nutri').hidden = true;
+    $('opciones-hora-nutri').replaceChildren(...(dia ? dia.horarios : []).map(h => crearOpcion('horaNutri', h, h, '', 'chip')));
+  }
+
+  formTurnos.addEventListener('change', e => {
+    ocultarAviso();
+    switch (e.target.name) {
+      case 'servicioNutri': cargarDias(); break;
+      case 'diaNutri': pintarHoras(); break;
+      case 'horaNutri': $('grupo-confirmar-nutri').hidden = false; break;
+      case 'consentimiento': errorDeCampo(formTurnos, 'consentimiento', ''); break;
+    }
+  });
+
+  formTurnos.addEventListener('submit', async e => {
+    e.preventDefault();
+    ocultarAviso();
+    if (!elegido('horaNutri')) return mostrarAviso('Elegí día y hora.');
+    if (!errorDeCampo(formTurnos, 'consentimiento', formTurnos.elements.consentimiento.checked ? '' :
+      'Para reservar tenés que aceptar el tratamiento de tus datos.')) return;
+
+    try {
+      const r = await conCarga(formTurnos.querySelector('button[type=submit]'), () => Api.llamar('reservarNutri', {
+        servicio: elegido('servicioNutri'),
+        fecha: elegido('diaNutri'),
+        hora: elegido('horaNutri'),
+        consentimiento: true,
+      }, estado.token));
+      estado.seguimiento = r.seguimiento;
+      irA('confirmacion');
+    } catch (error) {
+      if (error.codigo === 'HORARIO_OCUPADO') {
+        mostrarAviso(error.message);
+        cargarDias();
+      } else if (error.codigo === 'BOOKINGS_NO_DISPONIBLE') {
+        pasarARespaldo(error.message);
+      } else {
+        manejarError(error);
+      }
+    }
+  });
+
+  /** Si Bookings no responde, se pasa al modo manual sin perder al cliente. */
+  function pasarARespaldo(mensaje) {
+    vista('nutri-reservar');
+    mostrarAviso(mensaje, 'info');
+  }
+
+  // ─── Modo de respaldo: Bookings + "¿qué reservaste?" ─────────────────────
+
+  function prepararRespaldo() {
     const desdeTel = new Date(opciones.desdeTelefonica);
     const desdePre = new Date(opciones.desdePresencial);
     $('nutri-desde').textContent = 'a partir del ' + formatoDesde.format(desdeTel) + ' h' +
@@ -69,10 +185,7 @@ const PasoNutri = (() => {
     select.length = 1;
     opciones.servicios.forEach(s => select.add(new Option(s.nombre + ' (' + s.duracion + ' min)', s.nombre)));
     form.elements.fecha.min = opciones.desdeTelefonica.slice(0, 10);
-    return true;
   }
-
-  // ─── Botones ─────────────────────────────────────────────────────────────
 
   document.querySelectorAll('.abrir-bookings').forEach(a => a.addEventListener('click', () => vista('nutri-espera')));
 
@@ -83,9 +196,6 @@ const PasoNutri = (() => {
 
   $('nutri-volver').addEventListener('click', () => vista('nutri-reservar'));
   $('nutri-ver-resumen').addEventListener('click', () => irA('confirmacion'));
-  $('nutri-corregir').addEventListener('click', async () => {
-    if (await cargarOpciones()) vista('form-nutri');
-  });
 
   document.querySelectorAll('.copiar').forEach(boton => boton.addEventListener('click', async () => {
     const texto = $(boton.dataset.copiar).textContent;
@@ -96,9 +206,7 @@ const PasoNutri = (() => {
     } catch (e) { /* sin permiso de portapapeles: el texto igual está a la vista */ }
   }));
 
-  // ─── Regla: después de la cita médica ────────────────────────────────────
-
-  /** Devuelve el aviso si la fecha elegida no respeta la regla, o '' si está bien. */
+  /** Devuelve el aviso si la fecha declarada no respeta la regla, o '' si está bien. */
   function controlarRegla() {
     const servicio = opciones && opciones.servicios.find(s => s.nombre === form.elements.servicio.value);
     const { fecha, hora } = form.elements;

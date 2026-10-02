@@ -7,7 +7,7 @@
   <meta name="description" content="Reservá tu consulta con el médico y la nutricionista del Método PnK en Uruguay.">
   <meta name="theme-color" content="#b08d3e">
   <link rel="icon" href="img/logo-pnk.png">
-  <link rel="stylesheet" href="css/estilos.css?v=3">
+  <link rel="stylesheet" href="css/estilos.css?v=4">
 </head>
 <body>
 
@@ -179,6 +179,40 @@
 
     <p class="cargando-bloque" id="nutri-cargando">Cargando…</p>
 
+    <!-- Reserva con nuestros botones (horarios reales del Bookings de Verónica) -->
+    <form id="form-turnos-nutri" novalidate hidden>
+      <p class="ayuda">Elegí tu consulta con la nutricionista <strong>Verónica Bitz</strong>.
+        Te mostramos solo horarios libres posteriores a tu cita con el médico.</p>
+
+      <fieldset class="grupo">
+        <legend>Tipo de consulta</legend>
+        <div class="opciones" id="opciones-servicio-nutri"></div>
+      </fieldset>
+
+      <fieldset class="grupo" id="grupo-dia-nutri" hidden>
+        <legend>Día</legend>
+        <p class="cargando-bloque" id="dias-nutri-cargando" hidden>Buscando horarios libres…</p>
+        <div class="dias" id="opciones-dia-nutri"></div>
+        <p class="nota" id="sin-horarios-nutri" hidden>No hay horarios libres para esta consulta en los próximos días. Probá con otra modalidad o escribinos por WhatsApp.</p>
+      </fieldset>
+
+      <fieldset class="grupo" id="grupo-hora-nutri" hidden>
+        <legend>Hora</legend>
+        <div class="horas" id="opciones-hora-nutri"></div>
+      </fieldset>
+
+      <div class="grupo" id="grupo-confirmar-nutri" hidden>
+        <label class="compromiso">
+          <input type="checkbox" name="consentimiento">
+          <span>Acepto que <strong>Pronokal S.A.</strong> trate mis datos personales para gestionar esta cita,
+            según la Ley 18.331 de Protección de Datos Personales.
+            <small class="nota">Consultas sobre tus datos: pedidos.uruguay@pronokal.com</small></span>
+        </label>
+        <small class="error-campo" data-error-de="consentimiento"></small>
+        <button class="boton" type="submit">Reservar con la nutricionista</button>
+      </div>
+    </form>
+
     <!-- Instrucciones + agenda de Bookings -->
     <div id="nutri-reservar" class="pila" hidden>
       <ol class="instrucciones">
@@ -236,7 +270,7 @@
     <div id="nutri-registrada" class="pila" hidden>
       <div class="cita" id="nutri-cita-nutri"></div>
       <button class="boton" type="button" id="nutri-ver-resumen">Ver el resumen de mis citas</button>
-      <button class="boton-texto" type="button" id="nutri-corregir">Me equivoqué: corregir la cita con la nutricionista</button>
+      <a class="boton-texto" href="https://wa.me/59893365668" target="_blank" rel="noopener">¿Necesitás cambiarla? Escribinos por WhatsApp</a>
     </div>
   </section>
 
@@ -262,11 +296,11 @@
   <p><strong>Punta Carretas:</strong> Manuel Errazquin 2368, planta baja, esq. Rambla Mahatma Gandhi</p>
 </footer>
 
-<script src="js/config.js?v=3"></script>
-<script src="js/validaciones.js?v=3"></script>
-<script src="js/api.js?v=3"></script>
-<script src="js/paso-medico.js?v=3"></script>
-<script src="js/paso-nutri.js?v=3"></script>
-<script src="js/app.js?v=3"></script>
+<script src="js/config.js?v=4"></script>
+<script src="js/validaciones.js?v=4"></script>
+<script src="js/api.js?v=4"></script>
+<script src="js/paso-medico.js?v=4"></script>
+<script src="js/paso-nutri.js?v=4"></script>
+<script src="js/app.js?v=4"></script>
 </body>
 </html>
