@@ -366,7 +366,7 @@ const TARJETAS_CITA = {
   nutriControl: s => ({
     titulo: 'Tu control con la nutricionista', fecha: s.fechaNutriControl,
     lineas: ['Verónica Bitz', s.servicioNutriControl],
-    nota: 'Te confirmamos este horario por WhatsApp.',
+    nota: 'Se confirma automáticamente con la nutricionista unos días antes. Si cambia el horario, te avisamos por WhatsApp.',
   }),
 };
 
