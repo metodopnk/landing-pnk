@@ -189,7 +189,22 @@ fieldset { border: 0; margin: 0; padding: 0; }
 .grupo { display: grid; gap: 10px; }
 .grupo legend { font-weight: 600; font-size: 0.95rem; margin-bottom: 10px; padding: 0; }
 .nota { margin: 0; color: var(--gris); font-size: 0.88rem; }
-.cargando-bloque { margin: 8px 0; color: var(--gris); font-size: 0.92rem; }
+.cargando-bloque {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  margin: 12px 0; color: var(--gris); font-size: 0.92rem; text-align: center;
+}
+.cargando-bloque[hidden] { display: none !important; }
+
+/* Silueta que camina y adelgaza (ver animacionCaminante en app.js) */
+.caminante { width: 72px; height: 96px; overflow: visible; }
+.caminante path, .caminante circle, .caminante line {
+  fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+}
+.caminante .trazo path, .caminante .trazo circle { stroke: var(--dorado); }
+.caminante .trazo > path:not(.cuerpo), .caminante .trazo-atras path { stroke-width: 4.5; }   /* brazos y piernas */
+.caminante .trazo .cuerpo { fill: var(--blanco); }          /* tapa el brazo y la pierna de atrás */
+.caminante .trazo-atras path { stroke: var(--dorado); opacity: .35; }
+.caminante .piso { stroke: var(--linea); stroke-width: 2; stroke-dasharray: 14 10; }
 
 /* Tarjetas para elegir (tipo, médico, sede) */
 .opciones { display: grid; gap: 8px; }

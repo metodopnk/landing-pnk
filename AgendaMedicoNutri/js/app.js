@@ -400,6 +400,51 @@ function pintarCita(idContenedor, tipo) {
   if (cita.nota) agregar('p', cita.nota, 'nota');
 }
 
+// ─── Animación de espera: silueta que camina y adelgaza ────────────────────
+
+/**
+ * Silueta de perfil (solo contorno) que camina mientras la panza se va
+ * achicando: de un contorno con sobrepeso a uno delgado, y vuelve a empezar.
+ * Se agrega sola a todos los avisos de espera (.cargando-bloque).
+ */
+const SILUETA_GORDA = 'M45 30 C37 34 36 52 39 66 C40 72 43 77 47 78 L56 78 C82 75 86 44 60 31 C55 28 49 28 45 30 Z';
+const SILUETA_FLACA = 'M46 30 C41 34 41 52 43 66 C44 72 45 77 47 78 L55 78 C61 71 62 44 57 31 C54 28 50 28 46 30 Z';
+const SILUETA_TIEMPOS = 'keyTimes="0;0.65;0.9;1" values="' + [SILUETA_GORDA, SILUETA_FLACA, SILUETA_FLACA, SILUETA_GORDA].join(';') + '"';
+
+function animacionCaminante() {
+  const paso = (desde, hasta, cx, cy) =>
+    `<animateTransform attributeName="transform" type="rotate" dur="0.9s" repeatCount="indefinite"
+       values="${desde} ${cx} ${cy};${hasta} ${cx} ${cy};${desde} ${cx} ${cy}" calcMode="spline"
+       keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/>`;
+  const pierna = 'M51 78 L51 99 L50 120 L57 120';
+  const brazo = 'M51 35 L52 49 L55 60';
+  return `
+  <svg class="caminante" viewBox="0 0 100 134" aria-hidden="true">
+    <g class="trazo-atras">
+      <path d="${pierna}">${paso(-22, 22, 51, 78)}</path>
+      <path d="${brazo}">${paso(24, -24, 51, 35)}</path>
+    </g>
+    <g class="trazo">
+      <circle cx="52" cy="18" r="9"/>
+      <path class="cuerpo" d="${SILUETA_GORDA}">
+        <animate attributeName="d" dur="4.5s" repeatCount="indefinite" ${SILUETA_TIEMPOS}/>
+      </path>
+      <path d="${pierna}">${paso(22, -22, 51, 78)}</path>
+      <path d="${brazo}">${paso(-24, 24, 51, 35)}</path>
+    </g>
+    <line class="piso" x1="0" y1="126" x2="100" y2="126">
+      <animate attributeName="stroke-dashoffset" from="0" to="24" dur="0.9s" repeatCount="indefinite"/>
+    </line>
+  </svg>`;
+}
+
+document.querySelectorAll('.cargando-bloque').forEach(el => {
+  el.insertAdjacentHTML('afterbegin', animacionCaminante());
+});
+if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  document.querySelectorAll('.caminante animate, .caminante animateTransform').forEach(a => a.remove());
+}
+
 // ─── Arranque ──────────────────────────────────────────────────────────────
 
 const pasoInicial = puedeIr(estado.paso) ? estado.paso : pasoRecomendado();
