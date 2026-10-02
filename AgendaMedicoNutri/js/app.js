@@ -144,15 +144,21 @@ function errorDeCampo(form, nombre, mensaje) {
 /** Deshabilita el botón y muestra "cargando" (y un texto, si se indica) mientras se espera al backend. */
 async function conCarga(boton, tarea, textoEspera) {
   const textoOriginal = boton.textContent;
+  const espera = document.getElementById('espera-reserva');
   boton.disabled = true;
   boton.classList.add('cargando');
-  if (textoEspera) boton.textContent = textoEspera;
+  if (textoEspera) {
+    boton.textContent = textoEspera;
+    document.getElementById('espera-reserva-texto').textContent = textoEspera;
+    espera.hidden = false;   // pantalla con la silueta que camina
+  }
   try {
     return await tarea();
   } finally {
     boton.disabled = false;
     boton.classList.remove('cargando');
     boton.textContent = textoOriginal;
+    espera.hidden = true;
   }
 }
 
