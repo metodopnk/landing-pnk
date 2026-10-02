@@ -199,10 +199,11 @@ const PasoMedico = (() => {
         hora: elegido('hora'),
         compromisoPago: true,
         agendarControl: form.elements.agendarControl.checked,
-      }, estado.token));
+      }, estado.token), 'Reservando tu cita…');
       estado.seguimiento = r.seguimiento;
       guardar();
       mostrarAgendado();
+      PasoNutri.precargar();   // mientras lee la confirmación, ya se buscan los horarios de la nutri
       window.scrollTo(0, 0);
     } catch (error) {
       if (error.codigo === 'HORARIO_OCUPADO') {

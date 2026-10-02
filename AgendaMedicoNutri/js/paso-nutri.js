@@ -16,6 +16,13 @@ const PasoNutri = (() => {
   let opciones = null;
   let dias = [];
   let pedidoActual = 0;
+  let precarga = null;   // { token, cuando, promesa } pedida apenas se confirma la cita médica
+
+  /** Pide las opciones (con los horarios de los 6 servicios) por adelantado. */
+  function precargar() {
+    precarga = { token: estado.token, cuando: Date.now(), promesa: Api.llamar('opcionesNutri', {}, estado.token) };
+    precarga.promesa.catch(() => { precarga = null; });
+  }
 
   const formatoDia = new Intl.DateTimeFormat('es-UY', { timeZone: 'UTC', weekday: 'short', month: 'short' });
 
@@ -42,8 +49,11 @@ const PasoNutri = (() => {
   async function cargarOpciones() {
     vista('nutri-cargando');
     try {
-      opciones = await Api.llamar('opcionesNutri', {}, estado.token);
+      const sirve = precarga && precarga.token === estado.token && Date.now() - precarga.cuando < 50000;
+      opciones = await (sirve ? precarga.promesa : Api.llamar('opcionesNutri', {}, estado.token));
+      precarga = null;
     } catch (error) {
+      precarga = null;
       if (error.codigo === 'SIN_CITA_MEDICA') {
         estado.seguimiento = null;
         irA(pasoRecomendado());
@@ -65,6 +75,16 @@ const PasoNutri = (() => {
       crearOpcion('servicioNutri', s.nombre, s.nombre,
         s.duracion + ' min · ' + (s.modalidad === 'Telefónica' ? 'por teléfono' : 'presencial en Punta Carretas'))));
     vista('form-turnos-nutri');
+  }
+
+  /** Los horarios ya vinieron con las opciones: elegir servicio es instantáneo. */
+  function mostrarDias() {
+    const turnos = opciones.turnos && opciones.turnos[elegido('servicioNutri')];
+    if (!turnos) return cargarDias();   // no vinieron: se piden
+    $('grupo-dia-nutri').hidden = false;
+    $('dias-nutri-cargando').hidden = true;
+    dias = turnos;
+    pintarDias();
   }
 
   async function cargarDias() {
@@ -112,7 +132,7 @@ const PasoNutri = (() => {
   formTurnos.addEventListener('change', e => {
     ocultarAviso();
     switch (e.target.name) {
-      case 'servicioNutri': cargarDias(); break;
+      case 'servicioNutri': mostrarDias(); break;
       case 'diaNutri': pintarHoras(); break;
       case 'horaNutri': $('grupo-confirmar-nutri').hidden = false; break;
       case 'consentimiento': errorDeCampo(formTurnos, 'consentimiento', ''); break;
@@ -132,12 +152,13 @@ const PasoNutri = (() => {
         fecha: elegido('diaNutri'),
         hora: elegido('horaNutri'),
         consentimiento: true,
-      }, estado.token));
+      }, estado.token), 'Reservando con la nutricionista…');
       estado.seguimiento = r.seguimiento;
       irA('confirmacion');
     } catch (error) {
       if (error.codigo === 'HORARIO_OCUPADO') {
         mostrarAviso(error.message);
+        if (opciones.turnos) opciones.turnos = null;   // los horarios guardados ya no sirven
         cargarDias();
       } else if (error.codigo === 'BOOKINGS_NO_DISPONIBLE') {
         mostrarError();
@@ -155,5 +176,5 @@ const PasoNutri = (() => {
   $('nutri-reintentar').addEventListener('click', () => preparar());
   $('nutri-ver-resumen').addEventListener('click', () => irA('confirmacion'));
 
-  return { preparar: preparar };
+  return { preparar: preparar, precargar: precargar };
 })();

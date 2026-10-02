@@ -141,15 +141,18 @@ function errorDeCampo(form, nombre, mensaje) {
   return !mensaje;
 }
 
-/** Deshabilita el botón y muestra el "cargando" mientras se espera al backend. */
-async function conCarga(boton, tarea) {
+/** Deshabilita el botón y muestra "cargando" (y un texto, si se indica) mientras se espera al backend. */
+async function conCarga(boton, tarea, textoEspera) {
+  const textoOriginal = boton.textContent;
   boton.disabled = true;
   boton.classList.add('cargando');
+  if (textoEspera) boton.textContent = textoEspera;
   try {
     return await tarea();
   } finally {
     boton.disabled = false;
     boton.classList.remove('cargando');
+    boton.textContent = textoOriginal;
   }
 }
 
