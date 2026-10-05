@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1620,6 +1621,36 @@ window.addEventListener('scroll', ()=>{
 const SESSION_ID = 'pnk_' + Date.now() + '_' + Math.random().toString(36).substr(2,6);
 let _filaNum = null; // número de fila en el Sheet para esta sesión
 
+/* ---- EMBUDO POR VISITANTE (dashboard) ----
+   Registra cada paso del recorrido de agenda con un ID de visitante guardado en
+   el navegador. No envía nombre, teléfono ni email. Nunca rompe la página: si
+   algo falla, se ignora. Lo recibe la acción registrarPaso del Apps Script. */
+const PNK_VISITANTE = (() => {
+  try {
+    let v = localStorage.getItem('pnk_visitante');
+    if (!v) { v = 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8); localStorage.setItem('pnk_visitante', v); }
+    return v;
+  } catch (e) { return ''; }
+})();
+function registrarPaso(paso, extra) {
+  try {
+    extra = extra || {};
+    if (paso !== 'confirmo_reserva') {          // un envío por paso y por sesión
+      try {
+        if (sessionStorage.getItem('pnk_paso_' + paso)) return;
+        sessionStorage.setItem('pnk_paso_' + paso, '1');
+      } catch (e) {}
+    }
+    const params = new URLSearchParams({
+      action: 'registrarPaso', paso, visitante: PNK_VISITANTE, sesion: SESSION_ID,
+      origen: extra.origen || '', eventId: extra.eventId || '', detalle: extra.detalle || ''
+    });
+    new Image().src = APPS_SCRIPT_URL + '?' + params.toString();
+  } catch (e) { /* la medición nunca debe afectar a la página */ }
+}
+window.addEventListener('load', () => registrarPaso('visita'));
+
+
 // Guarda una acción del usuario en el backend (Sheets), vía JSONP hacia el Apps
 // Script. 'boton' identifica QUÉ pasó (ver WA_COLS y los distintos 'boton' en el
 // backend); 'extra' son datos adicionales específicos de esa acción.
@@ -3200,7 +3231,7 @@ function enviarCalculosWA(){
    MODAL — flujo 3 pasos: datos → slots → confirmación WA
    ================================================================ */
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzwj9W4W3ms7K0hlOmCyis6DUX-pkNHLdqtqYywHNvC1qTSCXjOg-9JQFKMLjjSyQE/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx7lnljUx4zDXiZq_znW_tWE1_b0MzO9yQZaQuvYBkanlYoS-7mSQJLCyT-o7lqaCtL/exec';
 const HTML_VERSION = '2026-10-01-idempotencia-reserva-v1'; // debe coincidir con SCRIPT_VERSION del .gs
 
 let _modalOrigen = 'agenda';
@@ -3419,6 +3450,7 @@ function abrirModal(origen){
   document.querySelectorAll('#confirm-slot-wrap .btn-tipo').forEach((b,i)=>{ b.disabled = false; b.classList.toggle('activo', i===0); });
   // Solo señal de Pixel al abrir el modal — el Sheet "Clientes Potenciales" se llena
   // una única vez, en confirmarAgenda(), cuando el turno queda realmente reservado.
+  registrarPaso('abrio_formulario', { origen });
   if(window.fbq) fbq('track','InitiateCheckout',{content_name:'agenda_consulta',origen});
 }
 
@@ -3605,6 +3637,7 @@ async function irAPaso2(){
   const lead={nombre,apellido,tel,email:emailAgenda,depto,kgObjetivo:kg_obj,ts:Date.now()};
   try{ localStorage.setItem('pnk_lead',JSON.stringify(lead)); }catch(e){}
   datosPaciente.lead=lead;
+  registrarPaso('completo_datos');
   if(window.fbq) fbq('trackCustom','agenda_paso1',{currency:'UYU',value:0,content_name:'agenda_paso1'});
   _showPaso(1.5);
 }
@@ -3652,6 +3685,7 @@ function cargarSlots(){
     }
     const slotsOrdenados = data.slots.sort((a,b)=>new Date(a.inicio)-new Date(b.inicio));
     // Solo Pixel — punto ciego del embudo: llegó a ver horarios disponibles.
+    registrarPaso('vio_horarios');
     if(window.fbq) fbq('trackCustom','vio_horarios',{modalidad:mod, tipo, cantidad:slotsOrdenados.length, ampliada:_disponibilidad==='variado'});
     const ubicLabelSlot = (s)=> s.modalidad==='online' ? 'Online' : (s.modalidad==='punta_carretas' ? 'Punta Carretas' : s.modalidad==='parque_batlle' ? 'Parque Batlle' : '');
     list.innerHTML=slotsOrdenados
@@ -3708,6 +3742,7 @@ async function elegirSlot(btn,slot){
   // adoptarla para que el agendamiento y los textos usen la modalidad correcta de ESE turno.
   if(slot.modalidad){ _modalidad = slot.modalidad; }
   // Solo Pixel — punto ciego del embudo: eligió un turno (todavía no confirmó).
+  registrarPaso('eligio_horario');
   if(window.fbq) fbq('trackCustom','eligio_horario',{modalidad:_modalidad, tipo:_tipoConsulta});
   // Mostrar botón de confirmación explícita
   const confWrap = document.getElementById('confirm-slot-wrap');
@@ -3825,6 +3860,7 @@ async function confirmarAgenda(){
       `<strong>${_slotElegido.label}</strong><br>
        Médico: ${medicoLabel} · ${tipoLabel}`;
     document.getElementById('btn-pagar-wa').onclick = () => pagarPorWA(data, d);
+    registrarPaso('confirmo_reserva', { eventId: data.eventId || '', origen: _modalOrigen || '' });
     if(window.fbq) fbq('track','Schedule',{content_name:'agenda_confirmada'});
     _showPaso(3);
   } catch(e) {
