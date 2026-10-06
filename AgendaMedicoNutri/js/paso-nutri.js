@@ -38,7 +38,8 @@ const PasoNutri = (() => {
   // ─── Mostrar el paso ─────────────────────────────────────────────────────
 
   async function preparar() {
-    pintarCita('nutri-cita-medico', 'medico');
+    if (esSoloNutri()) $('nutri-cita-medico').replaceChildren();
+    else pintarCita('nutri-cita-medico', 'medico');
     if (tieneCitaNutri()) {
       pintarCita('nutri-cita-nutri', 'nutri');
       return vista('nutri-registrada');
@@ -70,6 +71,9 @@ const PasoNutri = (() => {
 
   function mostrarTurnos() {
     formTurnos.reset();
+    $('nutri-ayuda-regla').textContent = opciones.soloNutri
+      ? 'Elegí el tipo de consulta y te mostramos sus horarios libres.'
+      : 'Te mostramos solo horarios libres posteriores a tu cita con el médico.';
     ['grupo-dia-nutri', 'grupo-hora-nutri', 'grupo-confirmar-nutri'].forEach(id => { $(id).hidden = true; });
     $('opciones-servicio-nutri').replaceChildren(...opciones.servicios.map(s =>
       crearOpcion('servicioNutri', s.nombre, s.nombre,

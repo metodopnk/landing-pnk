@@ -7,7 +7,7 @@
   <meta name="description" content="Reservá tu consulta con el médico y la nutricionista del Método PnK en Uruguay.">
   <meta name="theme-color" content="#b08d3e">
   <link rel="icon" href="img/logo-pnk.png">
-  <link rel="stylesheet" href="css/estilos.css?v=10">
+  <link rel="stylesheet" href="css/estilos.css?v=11">
 </head>
 <body>
 
@@ -100,7 +100,22 @@
         <input name="email" type="email" inputmode="email" autocomplete="email" placeholder="tu@email.com" required>
         <small class="error-campo" data-error-de="email"></small>
       </label>
-      <button class="boton" type="submit">Continuar con el médico</button>
+      <fieldset class="grupo">
+        <legend>¿Qué querés agendar?</legend>
+        <div class="opciones">
+          <label class="opcion">
+            <input type="radio" name="reserva" value="ambos" checked>
+            <span class="caja"><span class="titulo">Médico y nutricionista</span>
+              <span class="detalle">Primero el médico y después la nutricionista</span></span>
+          </label>
+          <label class="opcion">
+            <input type="radio" name="reserva" value="soloNutri">
+            <span class="caja"><span class="titulo">Solo nutricionista</span>
+              <span class="detalle">Consulta con Verónica Bitz</span></span>
+          </label>
+        </div>
+      </fieldset>
+      <button class="boton" type="submit" id="datos-continuar">Continuar con el médico</button>
     </form>
   </section>
 
@@ -182,7 +197,7 @@
     <!-- Reserva con nuestros botones (horarios reales del Bookings de Verónica) -->
     <form id="form-turnos-nutri" novalidate hidden>
       <p class="ayuda">Elegí tu consulta con la nutricionista <strong>Verónica Bitz</strong>.
-        Te mostramos solo horarios libres posteriores a tu cita con el médico.</p>
+        <span id="nutri-ayuda-regla">Te mostramos solo horarios libres posteriores a tu cita con el médico.</span></p>
 
       <fieldset class="grupo">
         <legend>Tipo de consulta</legend>
@@ -235,7 +250,7 @@
   <!-- 4. CONFIRMACIÓN ───────────────────────────────────────────────── -->
   <section class="tarjeta" id="paso-confirmacion" data-paso="confirmacion" hidden>
     <h2 tabindex="-1">¡Listo! Tus consultas</h2>
-    <p class="ayuda">Te esperamos. Te mandamos la invitación de la consulta médica a tu email.</p>
+    <p class="ayuda" id="confirmacion-ayuda">Te esperamos. Te mandamos la invitación de la consulta médica a tu email.</p>
     <div class="cita" id="confirmacion-cita-medico"></div>
     <div class="cita" id="confirmacion-cita-nutri"></div>
     <div class="cita" id="confirmacion-cita-control"></div>
@@ -259,11 +274,11 @@
   <p><strong>Punta Carretas:</strong> Manuel Errazquin 2368, planta baja, esq. Rambla Mahatma Gandhi</p>
 </footer>
 
-<script src="js/config.js?v=10"></script>
-<script src="js/validaciones.js?v=10"></script>
-<script src="js/api.js?v=10"></script>
-<script src="js/paso-medico.js?v=10"></script>
-<script src="js/paso-nutri.js?v=10"></script>
-<script src="js/app.js?v=10"></script>
+<script src="js/config.js?v=11"></script>
+<script src="js/validaciones.js?v=11"></script>
+<script src="js/api.js?v=11"></script>
+<script src="js/paso-medico.js?v=11"></script>
+<script src="js/paso-nutri.js?v=11"></script>
+<script src="js/app.js?v=11"></script>
 </body>
 </html>

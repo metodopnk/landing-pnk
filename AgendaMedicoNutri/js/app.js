@@ -11,13 +11,10 @@
  */
 
 const PASOS = ['acceso', 'datos', 'medico', 'nutri', 'confirmacion'];
-const TEXTO_PASO = {
-  acceso: 'Acceso',
-  datos: 'Paso 1 de 4 · Tus datos',
-  medico: 'Paso 2 de 4 · Médico',
-  nutri: 'Paso 3 de 4 · Nutricionista',
-  confirmacion: 'Paso 4 de 4 · Confirmación',
-};
+const NOMBRE_PASO = { datos: 'Tus datos', medico: 'Médico', nutri: 'Nutricionista', confirmacion: 'Confirmación' };
+
+/** Pasos del recorrido elegido: "solo nutricionista" no tiene el paso del médico. */
+const pasosVisibles = () => PASOS.filter(p => !(p === 'medico' && esSoloNutri()));
 const CLAVE_GUARDADO = 'agendaPnk';
 
 // ─── Estado (se guarda en la pestaña para sobrevivir a una recarga) ────────
@@ -25,7 +22,7 @@ const CLAVE_GUARDADO = 'agendaPnk';
 const estado = Object.assign(estadoInicial(), leerGuardado());
 
 function estadoInicial() {
-  return { paso: 'acceso', token: null, retoId: null, cliente: null, seguimiento: null, datosConfirmados: false };
+  return { paso: 'acceso', token: null, retoId: null, cliente: null, seguimiento: null, datosConfirmados: false, reserva: 'ambos' };
 }
 
 function leerGuardado() {
@@ -48,6 +45,7 @@ const cicloActivo = () => Boolean(estado.seguimiento) &&
   ['fechaMedico', 'fechaNutri', 'fechaControl', 'fechaNutriControl'].some(k => enElFuturo(estado.seguimiento[k]));
 const tieneCitaMedica = () => cicloActivo() && Boolean(estado.seguimiento.fechaMedico);
 const tieneCitaNutri = () => cicloActivo() && Boolean(estado.seguimiento.fechaNutri);
+const esSoloNutri = () => estado.reserva === 'soloNutri';
 
 // ─── Navegación ────────────────────────────────────────────────────────────
 
@@ -55,9 +53,9 @@ function puedeIr(paso) {
   switch (paso) {
     case 'acceso': return true;
     case 'datos': return Boolean(estado.token);
-    case 'medico': return Boolean(estado.token && estado.datosConfirmados);
-    case 'nutri': return Boolean(estado.token && tieneCitaMedica());
-    case 'confirmacion': return Boolean(estado.token && tieneCitaMedica() && tieneCitaNutri());
+    case 'medico': return Boolean(estado.token && estado.datosConfirmados && !esSoloNutri());
+    case 'nutri': return Boolean(estado.token && (tieneCitaMedica() || (esSoloNutri() && estado.datosConfirmados)));
+    case 'confirmacion': return Boolean(estado.token && tieneCitaNutri());
     default: return false;
   }
 }
@@ -85,13 +83,19 @@ function mostrar(paso) {
   ocultarAviso();
   document.querySelectorAll('main > section[data-paso]').forEach(s => { s.hidden = s.dataset.paso !== paso; });
 
-  const indice = PASOS.indexOf(paso);
-  document.querySelectorAll('.progreso li').forEach((li, i) => {
-    li.classList.toggle('hecho', i < indice);
+  const visibles = pasosVisibles();
+  const indice = visibles.indexOf(paso);
+  document.querySelectorAll('.progreso li').forEach(li => {
+    const i = visibles.indexOf(li.dataset.paso);
+    li.hidden = i < 0;
+    li.classList.toggle('hecho', i >= 0 && i < indice);
     li.classList.toggle('actual', i === indice);
     if (i === indice) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
+    if (i > 0) li.querySelector('.punto').textContent = String(i);   // numeración según el recorrido
   });
-  document.getElementById('progreso-texto').textContent = TEXTO_PASO[paso];
+  document.getElementById('progreso-texto').textContent = indice > 0
+    ? 'Paso ' + indice + ' de ' + (visibles.length - 1) + ' · ' + NOMBRE_PASO[paso]
+    : 'Acceso';
 
   if (PREPARAR_PASO[paso]) PREPARAR_PASO[paso]();
 
@@ -109,7 +113,11 @@ const PREPARAR_PASO = {
   medico() { PasoMedico.preparar(); },
   nutri() { PasoNutri.preparar(); },
   confirmacion() {
-    pintarCita('confirmacion-cita-medico', 'medico');
+    if (tieneCitaMedica()) pintarCita('confirmacion-cita-medico', 'medico');
+    else document.getElementById('confirmacion-cita-medico').replaceChildren();
+    document.getElementById('confirmacion-ayuda').textContent = tieneCitaMedica()
+      ? 'Te esperamos. Te mandamos la invitación de la consulta médica a tu email.'
+      : 'Te esperamos. La nutricionista te manda la confirmación a tu email.';
     pintarCita('confirmacion-cita-nutri', 'nutri');
     pintarCita('confirmacion-cita-control', 'control');
     pintarCita('confirmacion-cita-nutri-control', 'nutriControl');
@@ -242,6 +250,7 @@ formVerificacion.addEventListener('submit', async e => {
     estado.token = r.token;
     estado.cliente = r.cliente;
     estado.seguimiento = r.seguimiento;
+    estado.reserva = r.seguimiento && r.seguimiento.estado === 'Solo nutri agendada' ? 'soloNutri' : 'ambos';
     estado.datosConfirmados = tieneCitaMedica();   // si ya tiene cita, no hace falta re-confirmar datos
     irA(pasoRecomendado());
   } catch (error) {
@@ -281,7 +290,16 @@ function completarFormularioDatos() {
     ? 'Revisá que tus datos estén bien. Si algo cambió, corregilo.'
     : 'Completá tus datos. Usá el mismo nombre y email cuando reserves con la nutricionista.';
   ['nombre', 'apellido', 'whatsapp', 'email'].forEach(n => errorDeCampo(formDatos, n, ''));
+  campos.reserva.value = estado.reserva || 'ambos';
+  actualizarBotonDatos();
 }
+
+function actualizarBotonDatos() {
+  document.getElementById('datos-continuar').textContent = formDatos.elements.reserva.value === 'soloNutri'
+    ? 'Continuar con la nutricionista' : 'Continuar con el médico';
+}
+
+formDatos.addEventListener('change', e => { if (e.target.name === 'reserva') actualizarBotonDatos(); });
 
 formDatos.addEventListener('submit', async e => {
   e.preventDefault();
@@ -292,6 +310,7 @@ formDatos.addEventListener('submit', async e => {
     apellido: campos.apellido.value.trim(),
     whatsapp: campos.whatsapp.value.trim(),
     email: campos.email.value.trim(),
+    reserva: campos.reserva.value,
   };
   const ok = [
     errorDeCampo(formDatos, 'nombre', datos.nombre ? '' : 'Escribí tu nombre.'),
@@ -308,8 +327,9 @@ formDatos.addEventListener('submit', async e => {
     const r = await conCarga(formDatos.querySelector('button[type=submit]'), () =>
       Api.llamar('guardarDatos', datos, estado.token));
     estado.cliente = r.cliente;
+    estado.reserva = r.reserva;
     estado.datosConfirmados = true;
-    irA('medico');
+    irA(esSoloNutri() ? 'nutri' : 'medico');
   } catch (error) {
     manejarError(error);
   }
