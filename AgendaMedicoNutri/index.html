@@ -7,7 +7,7 @@
   <meta name="description" content="Reservá tu consulta con el médico y la nutricionista del Método PnK en Uruguay.">
   <meta name="theme-color" content="#b08d3e">
   <link rel="icon" href="img/logo-pnk.png">
-  <link rel="stylesheet" href="css/estilos.css?v=11">
+  <link rel="stylesheet" href="css/estilos.css?v=12">
 </head>
 <body>
 
@@ -15,7 +15,7 @@
   <img class="logo" src="img/logo-pnk.png" alt="Método PnK · Clínica Centenario" width="64" height="64">
   <div>
     <h1>Agendá tus consultas</h1>
-    <p>Primero con el médico y después con la nutricionista.</p>
+    <p>Médico y nutricionista, en pocos pasos.</p>
   </div>
 </header>
 
@@ -109,6 +109,11 @@
               <span class="detalle">Primero el médico y después la nutricionista</span></span>
           </label>
           <label class="opcion">
+            <input type="radio" name="reserva" value="soloMedico">
+            <span class="caja"><span class="titulo">Solo médico</span>
+              <span class="detalle">Consulta con el médico</span></span>
+          </label>
+          <label class="opcion">
             <input type="radio" name="reserva" value="soloNutri">
             <span class="caja"><span class="titulo">Solo nutricionista</span>
               <span class="detalle">Consulta con Verónica Bitz</span></span>
@@ -137,6 +142,7 @@
         <a class="boton secundario" id="medico-pago-link" target="_blank" rel="noopener">Enviar comprobante por WhatsApp</a>
       </div>
       <button class="boton" type="button" id="ir-a-nutri">Continuar con la nutricionista</button>
+      <button class="boton" type="button" id="ir-a-resumen" hidden>Ver el resumen de mi cita</button>
     </div>
 
     <!-- Reserva -->
@@ -174,7 +180,7 @@
         <label class="compromiso opcion-control">
           <input type="checkbox" name="agendarControl">
           <span><strong>Dejar agendado mi próximo control</strong> (Seguimiento, 30 min) 15 días después,
-            a la misma hora o la más cercana, y la nutricionista al día siguiente.
+            a la misma hora o la más cercana<span id="control-con-nutri">, y la nutricionista al día siguiente</span>.
             <small class="nota" id="control-precio"></small></span>
         </label>
         <label class="compromiso">
@@ -274,11 +280,11 @@
   <p><strong>Punta Carretas:</strong> Manuel Errazquin 2368, planta baja, esq. Rambla Mahatma Gandhi</p>
 </footer>
 
-<script src="js/config.js?v=11"></script>
-<script src="js/validaciones.js?v=11"></script>
-<script src="js/api.js?v=11"></script>
-<script src="js/paso-medico.js?v=11"></script>
-<script src="js/paso-nutri.js?v=11"></script>
-<script src="js/app.js?v=11"></script>
+<script src="js/config.js?v=12"></script>
+<script src="js/validaciones.js?v=12"></script>
+<script src="js/api.js?v=12"></script>
+<script src="js/paso-medico.js?v=12"></script>
+<script src="js/paso-nutri.js?v=12"></script>
+<script src="js/app.js?v=12"></script>
 </body>
 </html>

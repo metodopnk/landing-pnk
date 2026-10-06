@@ -81,6 +81,8 @@ const PasoMedico = (() => {
     $('medico-agendado').hidden = false;
     pintarCita('medico-cita', 'medico');
     pintarCita('medico-cita-control', 'control');
+    $('ir-a-nutri').hidden = esSoloMedico();
+    $('ir-a-resumen').hidden = !esSoloMedico();
     const s = estado.seguimiento || {};
     $('medico-control-sin-lugar').hidden = !/^Sin lugar/.test(s.controlAutomatico || '');
     $('medico-pago').hidden = !s.linkComprobante;
@@ -176,7 +178,11 @@ const PasoMedico = (() => {
       case 'medico': borrarDesde('sede'); pintarSedes(); break;
       case 'sede': borrarDesde('dia'); mostrarPrecio(); cargarDias(); break;
       case 'dia': borrarDesde('hora'); pintarHoras(); break;
-      case 'hora': $('grupo-confirmar').hidden = false; mostrarPrecioControl(); break;
+      case 'hora':
+        $('grupo-confirmar').hidden = false;
+        $('control-con-nutri').hidden = esSoloMedico();
+        mostrarPrecioControl();
+        break;
       case 'compromisoPago': errorDeCampo(form, 'compromisoPago', ''); break;
     }
   });
@@ -203,7 +209,7 @@ const PasoMedico = (() => {
       estado.seguimiento = r.seguimiento;
       guardar();
       mostrarAgendado();
-      PasoNutri.precargar();   // mientras lee la confirmación, ya se buscan los horarios de la nutri
+      if (!esSoloMedico()) PasoNutri.precargar();   // mientras lee la confirmación, ya se buscan los horarios de la nutri
       window.scrollTo(0, 0);
     } catch (error) {
       if (error.codigo === 'HORARIO_OCUPADO') {
@@ -217,6 +223,7 @@ const PasoMedico = (() => {
   });
 
   $('ir-a-nutri').addEventListener('click', () => irA('nutri'));
+  $('ir-a-resumen').addEventListener('click', () => irA('confirmacion'));
 
   return { preparar: preparar };
 })();

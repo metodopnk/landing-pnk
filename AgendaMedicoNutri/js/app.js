@@ -14,7 +14,7 @@ const PASOS = ['acceso', 'datos', 'medico', 'nutri', 'confirmacion'];
 const NOMBRE_PASO = { datos: 'Tus datos', medico: 'Médico', nutri: 'Nutricionista', confirmacion: 'Confirmación' };
 
 /** Pasos del recorrido elegido: "solo nutricionista" no tiene el paso del médico. */
-const pasosVisibles = () => PASOS.filter(p => !(p === 'medico' && esSoloNutri()));
+const pasosVisibles = () => PASOS.filter(p => !(p === 'medico' && esSoloNutri()) && !(p === 'nutri' && esSoloMedico()));
 const CLAVE_GUARDADO = 'agendaPnk';
 
 // ─── Estado (se guarda en la pestaña para sobrevivir a una recarga) ────────
@@ -46,6 +46,7 @@ const cicloActivo = () => Boolean(estado.seguimiento) &&
 const tieneCitaMedica = () => cicloActivo() && Boolean(estado.seguimiento.fechaMedico);
 const tieneCitaNutri = () => cicloActivo() && Boolean(estado.seguimiento.fechaNutri);
 const esSoloNutri = () => estado.reserva === 'soloNutri';
+const esSoloMedico = () => estado.reserva === 'soloMedico';
 
 // ─── Navegación ────────────────────────────────────────────────────────────
 
@@ -54,8 +55,8 @@ function puedeIr(paso) {
     case 'acceso': return true;
     case 'datos': return Boolean(estado.token);
     case 'medico': return Boolean(estado.token && estado.datosConfirmados && !esSoloNutri());
-    case 'nutri': return Boolean(estado.token && (tieneCitaMedica() || (esSoloNutri() && estado.datosConfirmados)));
-    case 'confirmacion': return Boolean(estado.token && tieneCitaNutri());
+    case 'nutri': return Boolean(estado.token && !esSoloMedico() && (tieneCitaMedica() || (esSoloNutri() && estado.datosConfirmados)));
+    case 'confirmacion': return Boolean(estado.token && (tieneCitaNutri() || (esSoloMedico() && tieneCitaMedica())));
     default: return false;
   }
 }
@@ -250,7 +251,8 @@ formVerificacion.addEventListener('submit', async e => {
     estado.token = r.token;
     estado.cliente = r.cliente;
     estado.seguimiento = r.seguimiento;
-    estado.reserva = r.seguimiento && r.seguimiento.estado === 'Solo nutri agendada' ? 'soloNutri' : 'ambos';
+    const estadoFila = r.seguimiento && r.seguimiento.estado;
+    estado.reserva = estadoFila === 'Solo nutri agendada' ? 'soloNutri' : estadoFila === 'Solo médico agendado' ? 'soloMedico' : 'ambos';
     estado.datosConfirmados = tieneCitaMedica();   // si ya tiene cita, no hace falta re-confirmar datos
     irA(pasoRecomendado());
   } catch (error) {
