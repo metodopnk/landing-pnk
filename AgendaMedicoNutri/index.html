@@ -7,7 +7,7 @@
   <meta name="description" content="Reservá tu consulta con el médico y la nutricionista del Método PnK en Uruguay.">
   <meta name="theme-color" content="#b08d3e">
   <link rel="icon" href="img/logo-pnk.png">
-  <link rel="stylesheet" href="css/estilos.css?v=12">
+  <link rel="stylesheet" href="css/estilos.css?v=14">
 </head>
 <body>
 
@@ -32,6 +32,29 @@
 
 <main>
   <div class="aviso" id="aviso" role="alert" hidden></div>
+
+  <!-- CONFIRMACIÓN DE ASISTENCIA (link del recordatorio: ?confirmar=código) ─ -->
+  <section class="tarjeta" id="asistencia" hidden>
+    <h2 tabindex="-1">Confirmá tu asistencia</h2>
+    <p class="cargando-bloque" id="asistencia-cargando">Buscando tu consulta…</p>
+    <div class="pila" id="asistencia-contenido" hidden>
+      <p class="ayuda" id="asistencia-saludo"></p>
+      <div class="cita" id="asistencia-cita"></div>
+      <div class="aviso info" id="asistencia-ok" hidden>✅ <strong>¡Gracias! Tu asistencia quedó confirmada.</strong> Te esperamos.</div>
+      <button class="boton" type="button" id="asistencia-confirmar">Confirmo mi asistencia</button>
+      <button class="boton secundario" type="button" id="asistencia-cambiar">No puedo ir: quiero elegir otro horario</button>
+
+      <!-- "No puedo ir": se pregunta antes de cancelar -->
+      <div class="pila" id="asistencia-cancelar" hidden>
+        <div class="aviso info">
+          <strong>¿Cancelamos esta consulta para que elijas otro horario?</strong>
+          <span id="asistencia-cancelar-detalle"></span>
+        </div>
+        <button class="boton" type="button" id="asistencia-cancelar-si">Sí, cancelar y elegir otro horario</button>
+        <button class="boton-texto" type="button" id="asistencia-cancelar-no">No, mantener mi consulta</button>
+      </div>
+    </div>
+  </section>
 
   <!-- ACCESO ─────────────────────────────────────────────────────────── -->
   <section class="tarjeta" id="paso-acceso" data-paso="acceso" hidden>
@@ -280,11 +303,12 @@
   <p><strong>Punta Carretas:</strong> Manuel Errazquin 2368, planta baja, esq. Rambla Mahatma Gandhi</p>
 </footer>
 
-<script src="js/config.js?v=12"></script>
-<script src="js/validaciones.js?v=12"></script>
-<script src="js/api.js?v=12"></script>
-<script src="js/paso-medico.js?v=12"></script>
-<script src="js/paso-nutri.js?v=12"></script>
-<script src="js/app.js?v=12"></script>
+<script src="js/config.js?v=14"></script>
+<script src="js/validaciones.js?v=14"></script>
+<script src="js/api.js?v=14"></script>
+<script src="js/paso-medico.js?v=14"></script>
+<script src="js/paso-nutri.js?v=14"></script>
+<script src="js/asistencia.js?v=14"></script>
+<script src="js/app.js?v=14"></script>
 </body>
 </html>

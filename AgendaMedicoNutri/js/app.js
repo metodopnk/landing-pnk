@@ -475,7 +475,14 @@ if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').m
 
 // ─── Arranque ──────────────────────────────────────────────────────────────
 
-const pasoInicial = puedeIr(estado.paso) ? estado.paso : pasoRecomendado();
-estado.paso = pasoInicial;
-history.replaceState({ paso: pasoInicial }, '');
-mostrar(pasoInicial);
+if (Asistencia.esLinkDeConfirmacion()) {
+  Asistencia.iniciar();          // vino del link del recordatorio: solo la confirmación
+} else {
+  const pasoInicial = puedeIr(estado.paso) ? estado.paso : pasoRecomendado();
+  estado.paso = pasoInicial;
+  history.replaceState({ paso: pasoInicial }, '', location.pathname);
+  mostrar(pasoInicial);
+  if (new URLSearchParams(location.search).get('reagendar')) {
+    mostrarAviso('Cancelamos tu consulta. Ingresá tu documento para elegir un nuevo horario.', 'info');
+  }
+}
