@@ -47,6 +47,7 @@ const tieneCitaMedica = () => cicloActivo() && Boolean(estado.seguimiento.fechaM
 const tieneCitaNutri = () => cicloActivo() && Boolean(estado.seguimiento.fechaNutri);
 const esSoloNutri = () => estado.reserva === 'soloNutri';
 const esSoloMedico = () => estado.reserva === 'soloMedico';
+const vieneAAgendarNutri = new URLSearchParams(location.search).get('nutri') === '1';
 
 // ─── Navegación ────────────────────────────────────────────────────────────
 
@@ -253,6 +254,8 @@ formVerificacion.addEventListener('submit', async e => {
     estado.seguimiento = r.seguimiento;
     const estadoFila = r.seguimiento && r.seguimiento.estado;
     estado.reserva = estadoFila === 'Solo nutri agendada' ? 'soloNutri' : estadoFila === 'Solo médico agendado' ? 'soloMedico' : 'ambos';
+    // Vino desde el link "agendá con la nutricionista" del recordatorio: directo a la nutri.
+    if (vieneAAgendarNutri && !tieneCitaNutri()) estado.reserva = tieneCitaMedica() ? 'ambos' : 'soloNutri';
     estado.datosConfirmados = tieneCitaMedica();   // si ya tiene cita, no hace falta re-confirmar datos
     irA(pasoRecomendado());
   } catch (error) {
@@ -482,6 +485,9 @@ if (Asistencia.esLinkDeConfirmacion()) {
   estado.paso = pasoInicial;
   history.replaceState({ paso: pasoInicial }, '', location.pathname);
   mostrar(pasoInicial);
+  if (vieneAAgendarNutri) {
+    mostrarAviso('Ingresá tu documento para agendar con la nutricionista.', 'info');
+  }
   if (new URLSearchParams(location.search).get('reagendar')) {
     mostrarAviso('Cancelamos tu consulta. Ingresá tu documento para elegir un nuevo horario.', 'info');
   }
