@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Confirmar asistencia · PNK Uruguay</title>
+<style>
+  :root{
+    --gold:#b08d3e; --gold-dark:#8f7230; --green:#4a9e70; --ink:#1f2933; --muted:#6b7480;
+    --cream:#fdfbf5; --card:#ffffff; --line:#e8dfc8; --red:#b3402f;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--cream);color:var(--ink);line-height:1.55;min-height:100vh}
+  header{background:#fff;border-bottom:1px solid var(--line);padding:16px 20px}
+  header strong{font-family:Georgia,"Times New Roman",serif;color:var(--gold);font-size:20px;display:block;line-height:1.1}
+  header span{font-size:13px;color:var(--muted)}
+  main{max-width:480px;margin:0 auto;padding:32px 16px 48px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px 22px;box-shadow:0 2px 14px rgba(0,0,0,.04);text-align:center}
+  h1{font-family:Georgia,"Times New Roman",serif;font-size:26px;line-height:1.2;margin-bottom:10px}
+  p{color:var(--muted);font-size:16px}
+  .detail{margin:20px 0;padding:16px;border-radius:12px;background:#faf6ed;border:1px solid var(--line);color:var(--ink);text-align:left}
+  .detail div{display:flex;gap:10px;padding:4px 0}
+  .detail b{min-width:78px;color:var(--muted);font-weight:600;font-size:14px;padding-top:1px}
+  button,.btn{display:block;width:100%;border:0;border-radius:12px;background:var(--gold);color:#fff;font-size:18px;font-weight:700;padding:16px;cursor:pointer;text-decoration:none;font-family:inherit}
+  button:hover,.btn:hover{background:var(--gold-dark)}
+  button:disabled{opacity:.6;cursor:wait}
+  .icon{font-size:44px;margin-bottom:8px}
+  .ok h1{color:var(--green)}
+  .err h1{color:var(--red)}
+  .spinner{width:34px;height:34px;border:4px solid var(--line);border-top-color:var(--gold);border-radius:50%;margin:6px auto 14px;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .small{font-size:14px;margin-top:16px}
+  [hidden]{display:none!important}
+  @media (prefers-reduced-motion:reduce){.spinner{animation:none}}
+</style>
+</head>
+<body>
+<header><strong>PNK Uruguay</strong><span>by PronoKal</span></header>
+<main>
+  <section id="cargando" class="card">
+    <div class="spinner" aria-hidden="true"></div>
+    <h1 id="cargandoTitulo">Un momento…</h1>
+    <p id="cargandoTexto">Estamos buscando tu consulta.</p>
+  </section>
+
+  <section id="detalle" class="card" hidden>
+    <h1 id="hola">¡Hola!</h1>
+    <p>Esta es tu consulta:</p>
+    <div class="detail" id="datos"></div>
+    <button id="btnConfirmar" type="button">Confirmar mi asistencia</button>
+    <p class="small">Si no vas a poder asistir, respondé el mensaje de WhatsApp y la reprogramamos.</p>
+  </section>
+
+  <section id="confirmada" class="card ok" hidden>
+    <div class="icon" aria-hidden="true">✅</div>
+    <h1 id="confirmadaTitulo">¡Asistencia confirmada!</h1>
+    <p id="confirmadaTexto">Te esperamos.</p>
+  </section>
+
+  <section id="error" class="card err" hidden>
+    <div class="icon" aria-hidden="true">😕</div>
+    <h1>No pudimos completar esto</h1>
+    <p id="errorTexto">Respondé el mensaje de WhatsApp que te enviamos y te confirmamos la consulta por ahí.</p>
+  </section>
+
+  <section id="envio" class="card" hidden>
+    <div class="spinner" aria-hidden="true"></div>
+    <h1>Abriendo WhatsApp…</h1>
+    <p>Se marcó el recordatorio como enviado. Si no se abre solo, tocá el botón.</p>
+    <p class="small"><a id="btnWa" class="btn" href="#" rel="noopener">Abrir WhatsApp</a></p>
+  </section>
+</main>
+
+<script>
+(function(){
+  var BACKEND = 'https://script.google.com/macros/s/AKfycbx7lnljUx4zDXiZq_znW_tWE1_b0MzO9yQZaQuvYBkanlYoS-7mSQJLCyT-o7lqaCtL/exec';
+  var qs = new URLSearchParams(location.search);
+  var E = qs.get('e') || '', T = qs.get('t') || '', M = qs.get('m') || '', W = qs.get('w') || '';
+
+  function $(id){ return document.getElementById(id); }
+  function mostrar(id){
+    ['cargando','detalle','confirmada','error','envio'].forEach(function(s){ $(s).hidden = (s !== id); });
+  }
+  function fallo(msg){ if (msg) $('errorTexto').textContent = msg; mostrar('error'); }
+
+  // JSONP con un reintento, igual que el resto de la landing (el backend es Apps Script).
+  var contador = 0;
+  function llamar(action, extra, cb, timeoutMs, intentos){
+    intentos = intentos == null ? 2 : intentos;
+    var name = 'pnkConf_' + Date.now() + '_' + (++contador);
+    var s = document.createElement('script'), listo = false, timer;
+    function limpiar(){ clearTimeout(timer); try{ delete window[name]; }catch(e){ window[name] = undefined; } if (s.parentNode) s.parentNode.removeChild(s); }
+    function reintentar(){
+      if (listo) return; listo = true; limpiar();
+      if (intentos > 1) llamar(action, extra, cb, timeoutMs, intentos - 1); else cb(null);
+    }
+    window[name] = function(data){ if (listo) return; listo = true; limpiar(); cb(data); };
+    var url = BACKEND + '?action=' + action + '&e=' + encodeURIComponent(E) + '&t=' + encodeURIComponent(T) + '&callback=' + name;
+    s.src = url; s.async = true; s.onerror = reintentar;
+    timer = setTimeout(reintentar, timeoutMs || 12000);
+    document.head.appendChild(s);
+  }
+
+  // ── Modo equipo: marca 🟡 y redirige a WhatsApp ──
+  function modoEnvio(){
+    // Solo se redirige a WhatsApp: evita que un link armado a mano mande a otro sitio.
+    var destinoOk = /^https:\/\/wa\.me\/\d+(\?|$)/.test(W);
+    if (!destinoOk) return fallo('Este link de envío no es válido. Usá el link de la planilla.');
+    $('btnWa').href = W;
+    mostrar('envio');
+    var yaFue = false;
+    function ir(){ if (yaFue) return; yaFue = true; location.href = W; }
+    llamar('recordatorioEnviado', null, function(){ ir(); }, 6000, 1); // si el registro falla, igual se abre WhatsApp
+    setTimeout(ir, 7000);
+  }
+
+  // ── Modo paciente: muestra la consulta y pide confirmar con un toque ──
+  function modoPaciente(){
+    if (!E || !T) return fallo('El link está incompleto. Respondé el mensaje de WhatsApp y te confirmamos por ahí.');
+    llamar('infoAsistencia', null, function(d){
+      if (!d || d.error || !d.ok) return fallo(d && d.error === 'Enlace no válido'
+        ? 'Este link no es válido. Respondé el mensaje de WhatsApp y te confirmamos por ahí.' : null);
+      if (d.confirmada) return exito(d);
+      $('hola').textContent = d.nombre ? '¡Hola, ' + d.nombre + '!' : '¡Hola!';
+      var filas = [['Fecha', d.fecha], ['Hora', d.hora], ['Con', d.medico.replace(/^el /,'').replace(/^la /,'')],
+                   ['Modalidad', d.modalidad === 'online' ? 'Online' : 'Presencial']];
+      if (d.lugar) filas.push(['Lugar', d.lugar]);
+      var cont = $('datos'); cont.textContent = '';
+      filas.forEach(function(f){
+        var div = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span');
+        b.textContent = f[0]; sp.textContent = f[1]; div.appendChild(b); div.appendChild(sp); cont.appendChild(div);
+      });
+      mostrar('detalle');
+      $('btnConfirmar').onclick = function(){
+        var btn = this; btn.disabled = true; btn.textContent = 'Confirmando…';
+        llamar('confirmarAsistencia', null, function(r){
+          if (r && r.ok) return exito(d);
+          btn.disabled = false; btn.textContent = 'Confirmar mi asistencia';
+          fallo(null);
+        }, 12000, 2);
+      };
+    }, 12000, 2);
+  }
+
+  function exito(d){
+    $('confirmadaTitulo').textContent = d.nombre ? '¡Gracias, ' + d.nombre + '! Asistencia confirmada' : '¡Asistencia confirmada!';
+    $('confirmadaTexto').textContent = 'Te esperamos el ' + d.fecha + ' a las ' + d.hora + ' con ' + d.medico + '.';
+    mostrar('confirmada');
+  }
+
+  if (M === 'enviar') modoEnvio(); else modoPaciente();
+})();
+</script>
+</body>
+</html>
