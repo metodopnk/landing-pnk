@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -169,6 +168,11 @@ a { color: inherit; text-decoration: none; }
 .btn-agenda:hover { background: var(--gold-d); transform: translateY(-1px); }
 .btn-agenda:active { transform: translateY(0); }
 .btn-agenda:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+/* Los botones de agendar solo se ven cuando la persona ya completó sus datos básicos
+   (clase body.lead-ok, que pone actualizarBotonesAgendar()). Antes se ve el botón de
+   "Completá tus datos", que abre el formulario. */
+body:not(.lead-ok) .solo-con-datos { display: none !important; }
+body.lead-ok .solo-sin-datos { display: none !important; }
 .sub-cta { font-size: .78rem; color: var(--muted); margin-top: 10px; }
 
 /* ============================================================
@@ -725,6 +729,8 @@ a { color: inherit; text-decoration: none; }
 </style>
 </head>
 <body>
+<script>/* evita el parpadeo: marca de entrada si ya hay datos guardados (misma regla que leadConfirmado) */
+try{var _d=JSON.parse(localStorage.getItem('pnk_lead')||'{}');if(_d.ts&&(Date.now()-_d.ts)<2592000000)document.body.classList.add('lead-ok');}catch(e){}</script>
 <!-- Google Tag Manager (noscript) -->
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NQT45QR6"
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
@@ -793,8 +799,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="bullet"><div class="ic">✓</div>+25 estudios científicos</div>
   </div>
 
-  <button class="btn-agenda" onclick="abrirModal('hero')">
+  <button class="btn-agenda solo-con-datos" onclick="abrirModal('hero')">
     Agendar consulta médica
+  </button>
+  <button class="btn-agenda solo-sin-datos" onclick="abrirVentanaLead('completo')">
+    📋 Completá tus datos para empezar
   </button>
   <p class="sub-cta">Coordiná tu primera consulta con el equipo médico</p>
 </section>
@@ -1104,7 +1113,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
       <div class="res-cta">
         <p>Tu resultado está listo. El siguiente paso es hablar con un médico que diseñe tu plan exacto, <strong>sin costo</strong>.</p>
-        <button class="btn-agenda" onclick="abrirModal('barra')" style="font-size:.95rem;padding:13px 26px">
+        <button class="btn-agenda solo-con-datos" onclick="abrirModal('barra')" style="font-size:.95rem;padding:13px 26px">
           Agendar mi consulta médica
         </button>
         <p style="font-size:.76rem;color:var(--muted);margin-top:8px">* Cálculo orientativo: IMC objetivo 24 (hombres) y 22,5 (mujeres). Resultados individuales pueden variar.</p>
@@ -1175,8 +1184,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </svg>
   <h2>¿Listo para empezar?</h2>
   <p>Coordiná tu primera consulta con el equipo médico. Podés hacerla desde tu casa.</p>
-  <button class="btn-agenda-w" onclick="abrirModal('footer')">
+  <button class="btn-agenda-w solo-con-datos" onclick="abrirModal('footer')">
     Agendar consulta médica
+  </button>
+  <button class="btn-agenda-w solo-sin-datos" onclick="abrirVentanaLead('completo')">
+    📋 Completá tus datos para empezar
   </button>
 </div>
 
@@ -1205,7 +1217,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <span id="barra-sem" style="font-size:1rem;font-weight:700;color:var(--ink);white-space:nowrap">–</span>
       </div>
     </div>
-    <button onclick="abrirModal('barra')" style="background:var(--gold);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font-body);white-space:nowrap;flex-shrink:0">
+    <button class="solo-con-datos" onclick="abrirModal('barra')" style="background:var(--gold);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font-body);white-space:nowrap;flex-shrink:0">
       Agendar →
     </button>
   </div>
@@ -1900,8 +1912,15 @@ window.pnkLeadRecibido = function(){
   }
 };
 
+// Muestra u oculta TODOS los botones de agendar según si la persona ya completó sus datos
+// básicos (lead guardado y vigente). Se llama al cargar y cada vez que se guardan los datos.
+function actualizarBotonesAgendar(){
+  document.body.classList.toggle('lead-ok', !!leadConfirmado());
+}
+
 // Saca el bloqueo/overlay de la calculadora una vez que el lead ya completó sus datos.
 function desbloquearCalculadora(){
+  actualizarBotonesAgendar();
   // Restaurar botones rápidos originales
   const btnsWrap = document.getElementById('btns-rapidos');
   if(btnsWrap && btnsWrap.querySelector('.btn-unlock-rapido')){
@@ -1932,6 +1951,7 @@ function desbloquearCalculadora(){
 
 // Tapa la calculadora con un overlay hasta que la persona complete el formulario de lead.
 function bloquearCalculadora(){
+  actualizarBotonesAgendar();
   // Botones rápidos: reemplazar por un solo botón de acción
   const btnsWrap = document.getElementById('btns-rapidos');
   if(btnsWrap && !btnsWrap.querySelector('.btn-unlock-rapido')){
@@ -1985,7 +2005,7 @@ function mostrarPanelAgenda(contenedor, mensaje){
     panel.id = 'panel-agenda-50';
     panel.style.cssText = 'background:var(--gold);border-radius:10px;padding:20px;text-align:center;margin-top:16px';
     panel.innerHTML = '<p id="panel-agenda-msg" style="color:#fff;font-size:.92rem;font-weight:600;margin-bottom:12px"></p>' +
-      '<button onclick="abrirModal(\'hero\')" style="background:#fff;color:var(--gold);border:none;border-radius:8px;padding:12px 24px;font-size:.92rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">📅 Agendar consulta médica →</button>';
+      '<button class="solo-con-datos" onclick="abrirModal(\'hero\')" style="background:#fff;color:var(--gold);border:none;border-radius:8px;padding:12px 24px;font-size:.92rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">📅 Agendar consulta médica →</button>';
     contenedor.appendChild(panel);
   }
   document.getElementById('panel-agenda-msg').textContent = mensaje;
@@ -2839,7 +2859,7 @@ function onKgSelectorChange(val){
       msgEl.id = 'selector-mas-50';
       msgEl.style.cssText = 'margin-top:12px;background:var(--gold);border-radius:8px;padding:14px;text-align:center';
       msgEl.innerHTML = '<p style="color:#fff;font-size:.88rem;font-weight:600;margin-bottom:10px">Para más de 50 kg te recomendamos una evaluación médica personalizada.</p>' +
-        '<button onclick="abrirModal(\'hero\')" style="background:#fff;color:var(--gold);border:none;border-radius:6px;padding:10px 20px;font-size:.88rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">📅 Agendar consulta médica →</button>';
+        '<button class="solo-con-datos" onclick="abrirModal(\'hero\')" style="background:#fff;color:var(--gold);border:none;border-radius:6px;padding:10px 20px;font-size:.88rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">📅 Agendar consulta médica →</button>';
       const wrap = document.getElementById('selector-kg-wrap');
       if(wrap) wrap.appendChild(msgEl);
     }
@@ -3409,6 +3429,8 @@ function acompanantesCompletos(){
 }
 
 function abrirModal(origen){
+  // Sin datos básicos no se entra al flujo de agenda: primero se piden los datos.
+  if(!leadConfirmado() && origen!=='calc' && origen!=='rapido'){ abrirVentanaLead('completo'); return; }
   _modalOrigen = origen; _kgRapidoPendiente = null;
   _tipoConsulta=''; _modalidad=''; _slotElegido=null;
   document.getElementById('modal-err').style.display='none';
