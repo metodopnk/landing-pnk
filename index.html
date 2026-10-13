@@ -1247,7 +1247,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <input id="m-tel" type="tel" inputmode="tel" placeholder="+598 9X XXX XXX" autocomplete="tel">
         </div>
         <div class="field">
-          <label for="m-email">Email</label>
+          <label for="m-email">Email *</label>
           <input id="m-email" type="email" inputmode="email" placeholder="tu@email.com" autocomplete="email">
         </div>
         <div class="field">
@@ -1274,7 +1274,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <label style="font-size:.85rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px">Tipo de consulta *</label>
         <div style="display:flex;gap:8px;flex-wrap:wrap" id="tipo-btns">
           <button type="button" class="btn-tipo" data-tipo="evaluacion"  onclick="setTipo(this)">🩺 Evaluación inicial</button>
-          <button type="button" class="btn-tipo" data-tipo="seguimiento" onclick="setTipo(this)">📋 Seguimiento</button>
           <button type="button" class="btn-tipo" data-tipo="reinicio"    onclick="setTipo(this)">🔄 Reinicio</button>
         </div>
       </div>
@@ -3562,7 +3561,7 @@ function validarCampo(id, val){
       if(!RX_TEL.test(val) || !telTieneSuficientesDigitos(val)) return 'Ingresá un teléfono válido (ej: +598 9X XXX XXX).';
       return null;
     case 'm-email':
-      if(!val) return null; // opcional
+      if(!val) return 'Este campo es obligatorio.';
       if(!RX_EMAIL.test(val)) return 'Ingresá un email válido.';
       return null;
     case 'm-depto':
@@ -3826,6 +3825,9 @@ async function confirmarAgenda(){
     nombre:    d.nombre    || '',
     apellido:  d.apellido  || '',
     telefono:  d.tel       || '',
+    email:     d.email     || '',
+    tipoDocumento: _tipoDocumento === 'cedula' ? 'CI' : 'Pasaporte',
+    documento: document.getElementById('input-documento').value.trim(),
     modalidad: _modalidad === 'online' ? 'online' : 'presencial',
     sede,
     tipo:      _tipoConsulta || 'evaluacion',
@@ -3857,7 +3859,18 @@ async function confirmarAgenda(){
     return;
   }
 
-  if(data.error){ coordinarPorWA(); return; }
+  if(data.error){
+    // Errores pensados para el cliente (ya tiene cita, horario ocupado, documento inválido…):
+    // se muestran tal cual. Cualquier otro error cae al fallback de WhatsApp, como siempre.
+    if(data.codigo){
+      const errEl = document.getElementById('slots-err');
+      if(errEl){ errEl.textContent = data.error; errEl.style.display = 'block'; errEl.scrollIntoView({block:'center',behavior:'smooth'}); }
+      if(data.codigo === 'HORARIO_OCUPADO'){ _slotElegido = null; cargarSlots(); if(errEl){ errEl.textContent = data.error; errEl.style.display = 'block'; } }
+      else { const cw = document.getElementById('confirm-slot-wrap'); if(cw) cw.style.display = 'block'; }
+      return;
+    }
+    coordinarPorWA(); return;
+  }
 
   // Guardar en Sheets/Calendar-log PRIMERO: si algo de la UI de abajo falla,
   // el registro del turno no debe perderse (el evento de Calendar ya se creó server-side).
