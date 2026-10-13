@@ -25,6 +25,10 @@
   button,.btn{display:block;width:100%;border:0;border-radius:12px;background:var(--gold);color:#fff;font-size:18px;font-weight:700;padding:16px;cursor:pointer;text-decoration:none;font-family:inherit}
   button:hover,.btn:hover{background:var(--gold-dark)}
   button:disabled{opacity:.6;cursor:wait}
+  button.sec{background:#fff;color:var(--ink);border:1.5px solid var(--line);margin-top:10px;font-weight:600}
+  button.sec:hover{background:#f5efe0}
+  button.peligro{background:var(--red);margin-top:18px}
+  button.peligro:hover{background:#8f3123}
   .icon{font-size:44px;margin-bottom:8px}
   .ok h1{color:var(--green)}
   .err h1{color:var(--red)}
@@ -40,16 +44,25 @@
 <main>
   <section id="cargando" class="card">
     <div class="spinner" aria-hidden="true"></div>
-    <h1 id="cargandoTitulo">Un momento…</h1>
-    <p id="cargandoTexto">Estamos buscando tu consulta.</p>
+    <h1>Un momento…</h1>
+    <p>Estamos buscando tu consulta.</p>
   </section>
 
   <section id="detalle" class="card" hidden>
     <h1 id="hola">¡Hola!</h1>
-    <p>Esta es tu consulta:</p>
+    <p id="intro">Esta es tu consulta:</p>
     <div class="detail" id="datos"></div>
     <button id="btnConfirmar" type="button">Confirmar mi asistencia</button>
-    <p class="small">Si no vas a poder asistir, respondé el mensaje de WhatsApp y la reprogramamos.</p>
+    <button id="btnNoPuedo" type="button" class="sec">No puedo ir</button>
+    <p class="small">Si necesitás cambiar el horario, avisanos respondiendo el mensaje de WhatsApp.</p>
+  </section>
+
+  <section id="seguro" class="card" hidden>
+    <div class="icon" aria-hidden="true">🗓️</div>
+    <h1>¿Cancelás tu consulta?</h1>
+    <p id="seguroTexto">El horario va a quedar libre para otra persona.</p>
+    <button id="btnSi" type="button" class="peligro">Sí, cancelar mi consulta</button>
+    <button id="btnVolver" type="button" class="sec">No, volver</button>
   </section>
 
   <section id="confirmada" class="card ok" hidden>
@@ -58,98 +71,105 @@
     <p id="confirmadaTexto">Te esperamos.</p>
   </section>
 
+  <section id="cancelada" class="card" hidden>
+    <div class="icon" aria-hidden="true">👋</div>
+    <h1>Consulta cancelada</h1>
+    <p>Listo, liberamos el horario. Cuando quieras volver a agendar, escribinos por WhatsApp o entrá a la web.</p>
+  </section>
+
   <section id="error" class="card err" hidden>
     <div class="icon" aria-hidden="true">😕</div>
     <h1>No pudimos completar esto</h1>
-    <p id="errorTexto">Respondé el mensaje de WhatsApp que te enviamos y te confirmamos la consulta por ahí.</p>
-  </section>
-
-  <section id="envio" class="card" hidden>
-    <div class="spinner" aria-hidden="true"></div>
-    <h1>Abriendo WhatsApp…</h1>
-    <p>Se marcó el recordatorio como enviado. Si no se abre solo, tocá el botón.</p>
-    <p class="small"><a id="btnWa" class="btn" href="#" rel="noopener">Abrir WhatsApp</a></p>
+    <p id="errorTexto">Respondé el mensaje de WhatsApp que te enviamos y lo resolvemos por ahí.</p>
   </section>
 </main>
 
 <script>
 (function(){
   var BACKEND = 'https://script.google.com/macros/s/AKfycbx7lnljUx4zDXiZq_znW_tWE1_b0MzO9yQZaQuvYBkanlYoS-7mSQJLCyT-o7lqaCtL/exec';
-  var qs = new URLSearchParams(location.search);
-  var E = qs.get('e') || '', T = qs.get('t') || '', M = qs.get('m') || '', W = qs.get('w') || '';
+  var C = (new URLSearchParams(location.search).get('confirmar') || '').trim();
 
   function $(id){ return document.getElementById(id); }
   function mostrar(id){
-    ['cargando','detalle','confirmada','error','envio'].forEach(function(s){ $(s).hidden = (s !== id); });
+    ['cargando','detalle','seguro','confirmada','cancelada','error'].forEach(function(s){ $(s).hidden = (s !== id); });
   }
   function fallo(msg){ if (msg) $('errorTexto').textContent = msg; mostrar('error'); }
 
   // JSONP con un reintento, igual que el resto de la landing (el backend es Apps Script).
   var contador = 0;
-  function llamar(action, extra, cb, timeoutMs, intentos){
+  function llamar(action, cb, timeoutMs, intentos){
     intentos = intentos == null ? 2 : intentos;
     var name = 'pnkConf_' + Date.now() + '_' + (++contador);
     var s = document.createElement('script'), listo = false, timer;
     function limpiar(){ clearTimeout(timer); try{ delete window[name]; }catch(e){ window[name] = undefined; } if (s.parentNode) s.parentNode.removeChild(s); }
     function reintentar(){
       if (listo) return; listo = true; limpiar();
-      if (intentos > 1) llamar(action, extra, cb, timeoutMs, intentos - 1); else cb(null);
+      if (intentos > 1) llamar(action, cb, timeoutMs, intentos - 1); else cb(null);
     }
     window[name] = function(data){ if (listo) return; listo = true; limpiar(); cb(data); };
-    var url = BACKEND + '?action=' + action + '&e=' + encodeURIComponent(E) + '&t=' + encodeURIComponent(T) + '&callback=' + name;
-    s.src = url; s.async = true; s.onerror = reintentar;
+    s.src = BACKEND + '?action=' + action + '&c=' + encodeURIComponent(C) + '&callback=' + name;
+    s.async = true; s.onerror = reintentar;
     timer = setTimeout(reintentar, timeoutMs || 12000);
     document.head.appendChild(s);
   }
 
-  // ── Modo equipo: marca 🟡 y redirige a WhatsApp ──
-  function modoEnvio(){
-    // Solo se redirige a WhatsApp: evita que un link armado a mano mande a otro sitio.
-    var destinoOk = /^https:\/\/wa\.me\/\d+(\?|$)/.test(W);
-    if (!destinoOk) return fallo('Este link de envío no es válido. Usá el link de la planilla.');
-    $('btnWa').href = W;
-    mostrar('envio');
-    var yaFue = false;
-    function ir(){ if (yaFue) return; yaFue = true; location.href = W; }
-    llamar('recordatorioEnviado', null, function(){ ir(); }, 6000, 1); // si el registro falla, igual se abre WhatsApp
-    setTimeout(ir, 7000);
-  }
+  var info = null;
 
-  // ── Modo paciente: muestra la consulta y pide confirmar con un toque ──
-  function modoPaciente(){
-    if (!E || !T) return fallo('El link está incompleto. Respondé el mensaje de WhatsApp y te confirmamos por ahí.');
-    llamar('infoAsistencia', null, function(d){
-      if (!d || d.error || !d.ok) return fallo(d && d.error === 'Enlace no válido'
-        ? 'Este link no es válido. Respondé el mensaje de WhatsApp y te confirmamos por ahí.' : null);
-      if (d.confirmada) return exito(d);
-      $('hola').textContent = d.nombre ? '¡Hola, ' + d.nombre + '!' : '¡Hola!';
-      var filas = [['Fecha', d.fecha], ['Hora', d.hora], ['Con', d.medico.replace(/^el /,'').replace(/^la /,'')],
-                   ['Modalidad', d.modalidad === 'online' ? 'Online' : 'Presencial']];
-      if (d.lugar) filas.push(['Lugar', d.lugar]);
-      var cont = $('datos'); cont.textContent = '';
-      filas.forEach(function(f){
-        var div = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span');
-        b.textContent = f[0]; sp.textContent = f[1]; div.appendChild(b); div.appendChild(sp); cont.appendChild(div);
-      });
-      mostrar('detalle');
-      $('btnConfirmar').onclick = function(){
-        var btn = this; btn.disabled = true; btn.textContent = 'Confirmando…';
-        llamar('confirmarAsistencia', null, function(r){
-          if (r && r.ok) return exito(d);
-          btn.disabled = false; btn.textContent = 'Confirmar mi asistencia';
-          fallo(null);
-        }, 12000, 2);
-      };
-    }, 12000, 2);
-  }
-
-  function exito(d){
-    $('confirmadaTitulo').textContent = d.nombre ? '¡Gracias, ' + d.nombre + '! Asistencia confirmada' : '¡Asistencia confirmada!';
-    $('confirmadaTexto').textContent = 'Te esperamos el ' + d.fecha + ' a las ' + d.hora + ' con ' + d.medico + '.';
+  function exito(){
+    $('confirmadaTitulo').textContent = info.nombre ? '¡Gracias, ' + info.nombre + '! Asistencia confirmada' : '¡Asistencia confirmada!';
+    $('confirmadaTexto').textContent = 'Te esperamos el ' + info.fecha + ' a las ' + info.hora + ' con ' + info.medico + '.';
     mostrar('confirmada');
   }
 
-  if (M === 'enviar') modoEnvio(); else modoPaciente();
+  function mostrarDetalle(){
+    $('hola').textContent = info.nombre ? '¡Hola, ' + info.nombre + '!' : '¡Hola!';
+    var filas = [['Fecha', info.fecha], ['Hora', info.hora], ['Con', info.medico.replace(/^el /,'').replace(/^la /,'')],
+                 ['Modalidad', info.modalidad === 'online' ? 'Online' : 'Presencial']];
+    if (info.lugar) filas.push(['Lugar', info.lugar]);
+    var cont = $('datos'); cont.textContent = '';
+    filas.forEach(function(f){
+      var div = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span');
+      b.textContent = f[0]; sp.textContent = f[1]; div.appendChild(b); div.appendChild(sp); cont.appendChild(div);
+    });
+    mostrar('detalle');
+  }
+
+  function iniciar(){
+    if (!/^[0-9a-fA-F]{40}$/.test(C)) return fallo('El link está incompleto. Respondé el mensaje de WhatsApp y lo resolvemos por ahí.');
+    llamar('infoCita', function(d){
+      if (!d || d.error || !d.ok) return fallo(d && d.error === 'Enlace no válido'
+        ? 'Este link no es válido. Respondé el mensaje de WhatsApp y lo resolvemos por ahí.' : null);
+      info = d;
+      if (d.estado === 'cancelada') return mostrar('cancelada');
+      if (d.estado === 'confirmada') return exito();
+      if (d.pasada) return fallo('Esta consulta ya pasó.');
+      mostrarDetalle();
+    }, 12000, 2);
+  }
+
+  $('btnConfirmar').onclick = function(){
+    var btn = this; btn.disabled = true; btn.textContent = 'Confirmando…';
+    llamar('confirmarCita', function(r){
+      btn.disabled = false; btn.textContent = 'Confirmar mi asistencia';
+      if (r && r.ok) return exito();
+      fallo(r && r.error && r.error !== 'Enlace no válido' ? r.error : null);
+    }, 15000, 2);
+  };
+  $('btnNoPuedo').onclick = function(){
+    $('seguroTexto').textContent = 'Vas a cancelar tu consulta del ' + info.fecha + ' a las ' + info.hora + '. El horario va a quedar libre para otra persona.';
+    mostrar('seguro');
+  };
+  $('btnVolver').onclick = function(){ mostrarDetalle(); };
+  $('btnSi').onclick = function(){
+    var btn = this; btn.disabled = true; btn.textContent = 'Cancelando…';
+    llamar('cancelarCita', function(r){
+      btn.disabled = false; btn.textContent = 'Sí, cancelar mi consulta';
+      if (r && r.ok) return mostrar('cancelada');
+      fallo(r && r.error && r.error !== 'Enlace no válido' ? r.error : null);
+    }, 15000, 2);
+  };
+
+  iniciar();
 })();
 </script>
 </body>
