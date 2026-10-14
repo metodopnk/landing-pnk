@@ -1665,8 +1665,8 @@ window.addEventListener('load', () => registrarPaso('visita'));
 // Guarda una acción del usuario en el backend (Sheets), vía JSONP hacia el Apps
 // Script. 'boton' identifica QUÉ pasó (ver WA_COLS y los distintos 'boton' en el
 // backend); 'extra' son datos adicionales específicos de esa acción.
-function registrar(boton, extra){
-  const d    = datosPaciente;
+function registrar(boton, extra, override){
+  const d    = Object.assign({}, datosPaciente, override || {});
   const lead = d.lead || {};
   const params = new URLSearchParams({
     action:    'registrarEvento',
@@ -1683,6 +1683,7 @@ function registrar(boton, extra){
     kg:        d.kg           || '',
     sem:       d.sem          || '',
     costo:     d.costoMedio   || '',
+    peso:      d.peso         || '',
     extra:     JSON.stringify(extra||{})
   });
 
@@ -1722,6 +1723,12 @@ let sexo    = 'mujer';
 let _monedaSimbolo = 'USD $';
 let horario = '';
 let datosPaciente = {};
+// Si la persona ya completó sus datos en una visita anterior (guardados en este navegador),
+// se recuperan acá para que el cálculo y los registros usen sus kg objetivo, nombre y teléfono.
+try{
+  const _l = JSON.parse(localStorage.getItem('pnk_lead')||'{}');
+  if(_l.ts && (Date.now()-_l.ts) < 2592000000 && (_l.nombre || _l.tel)) datosPaciente.lead = _l;
+}catch(e){}
 
 /* ---- Sexo ---- */
 function setSexo(s){
@@ -2047,41 +2054,50 @@ async function calcular(){
   }
   if(btnCalc){ btnCalc.disabled = false; btnCalc.textContent = btnTxtOriginal; }
   const kgPercForm = parseFloat(datosPaciente.lead?.kgObjetivo) || null;
-  datosPaciente = { ...datosPaciente, sexo, edad, altura, peso: peso.toFixed(1), imc: imc.toFixed(2), kg: kg.toFixed(1), kgPercepcion: kgPercForm, sem: calc?.semMedia||0, costoMedio: calc?.costoMedio||0, inversionInicial: calc?.inversionInicial||0, desglose: calc?.desglose||null };
+  // Lo PRIMERO que se muestra es el plan para los kg que la persona registró en "completá tus datos"
+  // (su objetivo). El selector de abajo le deja pasar al objetivo según IMC (peso ideal).
+  const kgFoco = (calc && kgPercForm) ? kgPercForm : kg;
+  let calcFoco = calc, kgMostrado = kgFoco;
+  if(calc && Math.abs(kgFoco - kg) > 0.05 && kgFoco < 50){
+    try { calcFoco = await calcularDesdeKg(kgFoco, imc, peso, ideal); }
+    catch(e){ console.error('calcular: no se pudo calcular el plan del objetivo registrado, se usa el de IMC', e); calcFoco = calc; kgMostrado = kg; }
+  }
+  // Lo que se guarda en la planilla (fila "Calcular") sigue siendo el resultado por IMC.
+  const resultadoImc = { kg: kg.toFixed(1), sem: calc?.semMedia||0, costoMedio: calc?.costoMedio||0 };
+  datosPaciente = { ...datosPaciente, sexo, edad, altura, peso: peso.toFixed(1), imc: imc.toFixed(2), kg: kgMostrado.toFixed(1), kgPercepcion: kgPercForm, sem: calcFoco?.semMedia||0, costoMedio: calcFoco?.costoMedio||0, inversionInicial: calcFoco?.inversionInicial||0, desglose: calcFoco?.desglose||null };
   const idx = imc<18.5?0:imc<25?1:imc<30?2:3;
   for(let i=0;i<4;i++) document.getElementById('seg'+i).classList.toggle('active', i===idx);
   document.getElementById('r-imc').textContent    = imc.toFixed(2)+' IMC';
-  document.getElementById('r-kg').textContent     = kg>0 ? Math.round(kg)+' kg' : '0 kg';
+  document.getElementById('r-kg').textContent     = kgMostrado>0 ? Math.round(kgMostrado)+' kg' : '0 kg';
   document.getElementById('r-ideal').textContent  = ideal.toFixed(0)+' kg';
-  document.getElementById('r-sem').textContent    = calc ? calc.semMedia+' semanas*' : '¡Ya estás!';
+  document.getElementById('r-sem').textContent    = calcFoco ? calcFoco.semMedia+' semanas*' : '¡Ya estás!';
   if(calc){
-    // Bloquear si kg IMC >= 50
-    if(kg >= 50){
+    // Bloquear si los kg a mostrar son >= 50
+    if(kgMostrado >= 50){
       document.getElementById('chart-wrap').style.display = 'none';
       document.getElementById('pasos-section').style.display = 'none';
       mostrarPanelAgenda(document.getElementById('resultado'),
-        'Tu IMC indica ' + Math.round(kg) + ' kg a perder. Para este caso te recomendamos una evaluación médica personalizada.');
+        'Tu objetivo son ' + Math.round(kgMostrado) + ' kg a perder. Para este caso te recomendamos una evaluación médica personalizada.');
       document.getElementById('resultado').style.display = 'block';
       return;
     }
     ocultarPanelAgenda();
-    renderChart(ideal+kg, ideal, kg, calc.pasoSemInicio);
+    renderChart(peso, peso-kgMostrado, kgMostrado, calcFoco.pasoSemInicio);
     document.getElementById('chart-wrap').style.display = 'block';
-    renderPasos(calc);
+    renderPasos(calcFoco);
     document.getElementById('pasos-section').style.display = 'block';
-    actualizarVizEtapas(calc, kg);
-    mostrarSeguimiento(calc, kg);
-    actualizarBarraFija(imc, kg, calc.semMedia);
+    actualizarVizEtapas(calcFoco, kgMostrado);
+    mostrarSeguimiento(calcFoco, kgMostrado);
+    actualizarBarraFija(imc, kgMostrado, calcFoco.semMedia);
     mostrarCarousel();
-    // Mostrar selector con desglose completo
-    const kgPercC = datosPaciente.kgPercepcion || datosPaciente.lead?.kgObjetivo || kg.toFixed(1);
-    mostrarSelectorKg(kg.toFixed(1), kgPercC, calc.inversionInicial, calc.desglose);
+    // Selector: "Tu peso objetivo" (registrado, activo de entrada) y "Según IMC"
+    mostrarSelectorKg(kg.toFixed(1), kgMostrado.toFixed(1), calcFoco.inversionInicial, calcFoco.desglose);
   } else {
     document.getElementById('chart-wrap').style.display = 'none';
     document.getElementById('pasos-section').style.display = 'none';
     document.getElementById('seguimiento-strip').style.display = 'none';
   }
-  registrar('calcular');
+  registrar('calcular', undefined, resultadoImc);
   if(window.fbq) fbq('trackCustom','calc_resultado',{currency:'UYU',value:0});
   document.getElementById('resultado').style.display = 'block';
   document.getElementById('resultado').scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -2754,6 +2770,9 @@ function elegirObjetivo(tipo){
   const slider = document.getElementById('input-kg-selector');
   if(slider) slider.value = Math.min(50, Math.max(5, kg));
   actualizarSelectorDisplay(kg);
+  if(kg >= 50){ onKgSelectorChange(kg); return; } // más de 50 kg: se recomienda evaluación médica
+  const msgEl = document.getElementById('selector-mas-50');
+  if(msgEl) msgEl.style.display = 'none';
   recalcularConKg(kg);
 }
 
