@@ -232,7 +232,9 @@ formDocumento.addEventListener('submit', async e => {
       estado.token = r.token;
       estado.cliente = { tipoDocumento: r.tipoDocumento, documento: r.documento };
       irA('datos');
-      mostrarAviso('No encontramos ese documento. Completá tus datos para continuar.', 'info');
+      mostrarAviso(r.sinWhatsapp
+        ? 'Encontramos ese documento, pero sin un WhatsApp válido para verificarlo. Completá tus datos para continuar.'
+        : 'No encontramos ese documento. Completá tus datos para continuar.', 'info');
     }
   } catch (error) {
     manejarError(error);
@@ -475,6 +477,14 @@ document.querySelectorAll('.cargando-bloque').forEach(el => {
 if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
   document.querySelectorAll('.caminante animate, .caminante animateTransform').forEach(a => a.remove());
 }
+
+// ─── 4. Confirmación ───────────────────────────────────────────────────────
+
+// Terminó de agendar: se borra todo lo de este cliente y la página vuelve al inicio, lista para otro.
+document.getElementById('terminar').addEventListener('click', () => {
+  reiniciar();
+  location.replace(location.pathname);
+});
 
 // ─── Arranque ──────────────────────────────────────────────────────────────
 
